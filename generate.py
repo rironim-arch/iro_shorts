@@ -11,18 +11,42 @@ from google.genai import types
 OUT = Path("output")
 OUT.mkdir(exist_ok=True)
 W, H = 1080, 1920
-TOPIC = "샴푸, 많이 쓰면 더 깨끗할까?"
-SENTENCES = [
-    "샴푸, 많이 쓰면 더 깨끗할까요?",
-    "꼭 그렇지는 않습니다.",
-    "거품의 양이 세정력과 정확히 비례하는 건 아닙니다.",
-    "두피와 모발 길이에 맞춰 적당량을 쓰세요.",
-    "중요한 건 충분히 헹구는 습관입니다.",
-    "매일 써먹는 생활정보, 생활알고리즘!",
-]
+from datetime import datetime, date
+from zoneinfo import ZoneInfo
+import json
+
+# Choose two distinct prepared scripts per Korean calendar day.
+# 60 scripts = 30 days without repetition; the list then cycles.
+all_topics = json.loads(Path("topics.json").read_text(encoding="utf-8"))
+now_kst = datetime.now(ZoneInfo("Asia/Seoul"))
+slot = os.getenv("SLOT", "auto").strip().lower()
+if slot == "auto":
+    slot = "morning" if now_kst.hour < 14 else "evening"
+if slot not in ("morning", "evening"):
+    raise ValueError("SLOT must be morning, evening, or auto")
+override = os.getenv("VIDEO_INDEX", "").strip()
+if override:
+    idx = int(override) - 1
+    if not 0 <= idx < len(all_topics):
+        raise ValueError(f"VIDEO_INDEX must be 1 through {len(all_topics)}")
+else:
+    days_since_start = (now_kst.date() - date(2026, 11, 6)).days
+    idx = (days_since_start * 2 + (slot == "evening")) % len(all_topics)
+selected = all_topics[idx]
+TOPIC = selected["title"]
+SENTENCES = selected["sentences"]
+if not (4 <= len(SENTENCES) <= 8) or not all(isinstance(s, str) and s.strip() for s in SENTENCES):
+    raise ValueError("Invalid topic or narration sentences")
 SCRIPT = " ".join(SENTENCES)
 (OUT / "script.txt").write_text(TOPIC + "\n\n" + SCRIPT + "\n", encoding="utf-8")
-
+(OUT / "metadata.json").write_text(
+    json.dumps({
+        "title": TOPIC + " | 생활알고리즘 #shorts",
+        "description": "생활에 바로 쓰는 짧은 정보.\n#생활알고리즘 #생활정보 #shorts",
+        "slot": slot, "index": idx + 1, "generated_at_kst": now_kst.isoformat(),
+        "status": "DRAFT_REVIEW_REQUIRED",
+    }, ensure_ascii=False, indent=2), encoding="utf-8"
+)
 
 def create_voice():
     key = os.environ.get("GEMINI_API_KEY")
