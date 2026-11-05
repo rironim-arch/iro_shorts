@@ -1,0 +1,32 @@
+name: 시니어 사연 롱폼 음성 제작 (1회 요청)
+on:
+  push:
+    paths:
+      - senior_voice_request.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Gemini SDK
+        run: pip install "google-genai>=1.0.0,<3"
+      - name: Synthesize original full narration
+        run: python make_senior_narration.py
+      - name: Preserve results even if quota interrupted
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: senior-story-narration-parts
+          path: senior_audio/*
+          if-no-files-found: warn
+          retention-days: 5
