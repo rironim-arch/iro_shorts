@@ -1,8 +1,6 @@
 name: Long-form script asset retrieval (one-off)
 on:
-  push:
-    paths:
-      - senior_story_bundle_request.json
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
