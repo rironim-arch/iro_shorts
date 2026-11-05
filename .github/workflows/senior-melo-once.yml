@@ -1,8 +1,5 @@
 name: 시니어 사연 결말 3장 오픈소스 음성 (1회)
 on:
-  push:
-    paths:
-      - senior_melo_request.json
   workflow_dispatch:
 permissions:
   contents: read
