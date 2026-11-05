@@ -1,8 +1,5 @@
 name: 승인된 탈모 예방 숏츠 음성 1회 제작
 on:
-  push:
-    paths:
-      - hair_prevention_voice.json
   workflow_dispatch:
 permissions:
   contents: read
