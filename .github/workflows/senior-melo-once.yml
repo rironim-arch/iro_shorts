@@ -1,0 +1,33 @@
+name: 시니어 사연 결말 3장 오픈소스 음성 (1회)
+on:
+  push:
+    paths:
+      - senior_melo_request.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install MeloTTS Korean
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg libsndfile1
+          pip install git+https://github.com/myshell-ai/MeloTTS.git
+          python -m unidic download
+      - name: Synthesize last 3 chapters
+        run: python make_senior_melo_ending.py
+      - name: Preserve generated results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: senior-melo-remaining-chapters
+          path: melo_story_audio/*.wav
+          retention-days: 5
+          if-no-files-found: warn
