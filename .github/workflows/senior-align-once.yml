@@ -1,0 +1,38 @@
+name: 시니어 사연 자막 싱크 분석 (1회)
+on:
+  push:
+    paths:
+      - senior_align_request.json
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download original narration WAV files
+        run: |
+          mkdir -p parts_first parts_ending
+          gh run download 42109625433 --repo "$GITHUB_REPOSITORY" --name senior-story-narration-parts --dir parts_first
+          gh run download 42112280882 --repo "$GITHUB_REPOSITORY" --name senior-melo-remaining-chapters --dir parts_ending
+          ls -lh parts_first/*.wav parts_ending/*.wav
+      - name: Install Korean speech recognition
+        run: pip install "faster-whisper>=1.1,<2"
+      - name: Locate each spoken word
+        run: python align_senior_asr.py
+      - name: Save timestamps even if partial
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: senior-word-timestamps
+          path: aligned_output/*.json
+          if-no-files-found: warn
+          retention-days: 7
