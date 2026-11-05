@@ -1,8 +1,5 @@
 name: 승인된 탈모샴푸 숏츠 음성 1회 제작
 on:
-  push:
-    paths:
-      - voice_request.json
   workflow_dispatch:
 permissions:
   contents: read
