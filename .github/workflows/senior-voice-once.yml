@@ -1,8 +1,5 @@
 name: 시니어 사연 롱폼 음성 제작 (1회 요청)
 on:
-  push:
-    paths:
-      - senior_voice_request.json
   workflow_dispatch:
 permissions:
   contents: read
