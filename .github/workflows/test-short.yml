@@ -1,10 +1,6 @@
-name: 생활알고리즘 매일 2개 자동 제작
+name: 생활알고리즘 수동 테스트 전용 (자동 일정 중단)
 
 on:
-  # GitHub cron uses UTC. 00:14 UTC = 09:14 KST, 09:14 UTC = 18:14 KST
-  schedule:
-    - cron: "14 0 * * *"
-    - cron: "14 9 * * *"
   workflow_dispatch:
     inputs:
       slot:
