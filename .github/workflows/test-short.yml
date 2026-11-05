@@ -1,0 +1,45 @@
+name: 생활알고리즘 숏츠 1개 테스트
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_TTS_MODEL: gemini-2.5-flash-preview-tts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install fonts and ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Validate secret
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY가 GitHub Actions Repository secrets에 없습니다."
+            exit 1
+          fi
+      - name: Generate a sample Short
+        run: python generate.py
+      - name: Save MP4 and captions
+        uses: actions/upload-artifact@v4
+        with:
+          name: saenghwal-algorithm-short
+          path: |
+            output/*.mp4
+            output/*.srt
+            output/*.txt
+          retention-days: 7
