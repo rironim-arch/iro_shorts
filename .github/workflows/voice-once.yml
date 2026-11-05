@@ -1,0 +1,31 @@
+name: 승인된 탈모샴푸 숏츠 음성 1회 제작
+on:
+  push:
+    paths:
+      - voice_request.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Gemini SDK
+        run: pip install "google-genai>=1.0.0,<3"
+      - name: Generate spoken Korean WAV
+        run: python make_hairloss_voice.py
+      - name: Save narration for editing
+        uses: actions/upload-artifact@v4
+        with:
+          name: approved-hairloss-narration
+          path: |
+            hairloss_voice.wav
+            script_copy.json
+          retention-days: 3
