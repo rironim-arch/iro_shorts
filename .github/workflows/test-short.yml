@@ -1,10 +1,33 @@
-name: 생활알고리즘 숏츠 1개 테스트
+name: 생활알고리즘 매일 2개 자동 제작
 
 on:
+  # GitHub cron uses UTC. 00:14 UTC = 09:14 KST, 09:14 UTC = 18:14 KST
+  schedule:
+    - cron: "14 0 * * *"
+    - cron: "14 9 * * *"
   workflow_dispatch:
+    inputs:
+      slot:
+        description: "아침/저녁 선택 (자동은 현재 한국시간 기준)"
+        type: choice
+        options:
+          - auto
+          - morning
+          - evening
+        default: auto
+        required: false
+      topic_number:
+        description: "수동 테스트 주제 번호 (1~60, 비워두면 날짜에 따라 자동)"
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
+
+concurrency:
+  group: daily-shorts-${{ github.ref }}-${{ github.event.schedule || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   preview:
@@ -13,6 +36,8 @@ jobs:
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_TTS_MODEL: gemini-2.5-flash-preview-tts
+      SLOT: ${{ inputs.slot || 'auto' }}
+      VIDEO_INDEX: ${{ inputs.topic_number || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,20 +51,29 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Validate secret
+      - name: Validate configuration
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then
             echo "::error::GEMINI_API_KEY가 GitHub Actions Repository secrets에 없습니다."
             exit 1
           fi
-      - name: Generate a sample Short
+          python -m py_compile generate.py
+          python -m json.tool topics.json > /dev/null
+      - name: Create narrated 9:16 Short
         run: python generate.py
-      - name: Save MP4 and captions
+      - name: Downloadable MP4 and caption files (no publishing)
         uses: actions/upload-artifact@v4
         with:
-          name: saenghwal-algorithm-short
+          name: saenghwal-short-${{ github.run_number }}
           path: |
             output/*.mp4
             output/*.srt
             output/*.txt
-          retention-days: 7
+            output/*.json
+          retention-days: 14
+          if-no-files-found: error
+      - name: Add summary
+        if: success()
+        run: |
+          echo "### 제작 완료" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifacts의 MP4 다운로드 후 검토해 주세요. 아직 유튜브 게시 기능은 활성화하지 않았습니다." >> "$GITHUB_STEP_SUMMARY"
