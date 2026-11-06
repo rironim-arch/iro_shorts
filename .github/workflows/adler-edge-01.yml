@@ -1,0 +1,44 @@
+name: Adler 01 Edge Korean TTS Preview
+on:
+  push:
+    branches: [main]
+    paths:
+      - adler_edge_01.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install FFmpeg and Korean fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+          python -m pip install -r requirements.txt
+          python -m pip install 'edge-tts>=7,<9'
+      - name: Create Adler 01 voice-over preview with Edge TTS
+        run: python adler_edge_01.py
+      - name: Upload preview files (No YouTube publishing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Adler-01-Hyunsu-Short
+          path: |
+            output_adler_01/adler_01_hyunsu.mp4
+            output_adler_01/edge_hyunsu_voice.wav
+            output_adler_01/edge_captions.srt
+            output_adler_01/edge_metadata.json
+            output_adler_01/edge_script.txt
+            output_adler_01/frame_00.png
+            output_adler_01/frame_06.png
+          retention-days: 14
+          if-no-files-found: error
+      - name: Job summary
+        run: |
+          echo "## Edge TTS Hyunsu Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "MP4, WAV and SRT are in the Artifacts. YouTube upload is not enabled." >> "$GITHUB_STEP_SUMMARY"
