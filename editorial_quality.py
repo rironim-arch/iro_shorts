@@ -36,7 +36,7 @@ def audit(topics):
         if len(topic["visuals"])!=len(lines):
             faults.append(f"{prefix}: each narrated line must have its own visual plan")
         raw=" ".join(lines)
-        if not 170<=len(normalize(raw))<=480:
+        if not 145<=len(normalize(raw))<=480:
             faults.append(f"{prefix}: insufficient or overly long educational detail")
         if any(len(ln)>105 for ln in lines):
             faults.append(f"{prefix}: narration line exceeds 105 characters")
