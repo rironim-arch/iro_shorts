@@ -174,22 +174,31 @@ def main():
     key=os.getenv("GEMINI_API_KEY")
     if not key:raise RuntimeError("GEMINI_API_KEY secret missing")
     client=genai.Client(api_key=key)
-    durations=[]
-    for i,beat in enumerate(BEATS):
-        raw=gen_voice(client,i,beat[0])
-        processed=OUT/f"audio_{i:02}.wav"
+    # One Gemini request per pair of scenes, staying below the free-tier
+    # 10-requests-per-day cap. Exact pair duration, approximate split inside pair.
+    durations=[0.0]*len(BEATS)
+    groups=[list(range(i,min(i+2,len(BEATS)))) for i in range(0,len(BEATS),2)]
+    for gi,indices in enumerate(groups):
+        spoken=" ".join(BEATS[i][0] for i in indices)
+        raw=gen_voice(client,gi,spoken)
+        processed=OUT/f"audio_group_{gi:02}.wav"
         run("ffmpeg","-y","-hide_banner","-loglevel","error","-i",str(raw),
             "-filter:a","atempo=1.25","-ac","1","-ar","24000",str(processed))
-        dur=duration(processed)
-        draw_frame(i,beat)
-        durations.append(dur)
-        print(f"Rendered {i+1}/{len(BEATS)} duration {dur:.2f}s",flush=True)
+        group_duration=duration(processed)
+        weights=[max(1,len(re.sub(r"\\s+","",BEATS[i][0]))) for i in indices]
+        for i,w in zip(indices,weights):
+            durations[i]=group_duration*w/sum(weights)
+        print(f"Voice group {gi+1}/{len(groups)} duration={group_duration:.2f}s",flush=True)
         time.sleep(7)
+    for i,beat in enumerate(BEATS):
+        draw_frame(i,beat)
+        print(f"Rendered scene {i+1}/{len(BEATS)}",flush=True)
     (OUT/"script.txt").write_text("\n".join(b[0] for b in BEATS),encoding="utf-8")
     meta={"title":"착한 사람은 왜 항상 상처받을까? | 아들러 심리학 1화 #shorts",
           "description":"아들러 심리학을 참고해 만든 일상 심리 해설입니다. #생활알고리즘 #아들러심리학 #shorts",
           "voice":"Gemini 2.5 Flash TTS / Charon","speed":1.25,
           "status":"DRAFT_REVIEW_REQUIRED","uploaded_to_youtube":False,
+          "caption_sync":"Exact voice timing per two-scene group; estimated split within each group.",
           "note":"아들러의 직접 인용이 아닌 재구성한 내용",
           "generated_at_kst":datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}
     (OUT/"metadata.json").write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding="utf-8")
@@ -200,7 +209,8 @@ def main():
     vf=[];af=[]
     for i,dur in enumerate(durations):
         vf.extend([f"file 'frame_{i:02}.png'",f"duration {dur:.6f}"])
-        af.append(f"file 'audio_{i:02}.wav'")
+    for gi in range(len(groups)):
+        af.append(f"file 'audio_group_{gi:02}.wav'")
     vf.append(f"file 'frame_{len(BEATS)-1:02}.png'")
     (OUT/"video_slides.txt").write_text("\n".join(vf)+"\n",encoding="utf-8")
     (OUT/"audio_clips.txt").write_text("\n".join(af)+"\n",encoding="utf-8")
