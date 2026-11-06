@@ -1,0 +1,55 @@
+name: 생활알고리즘 아들러 심리학 1화 Gemini 제작
+on:
+  push:
+    branches: [main]
+    paths:
+      - adler_episode_01.py
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: adler-episode-01
+  cancel-in-progress: false
+jobs:
+  create-draft:
+    name: Gemini Charon 음성 + 9:16 MP4 (검토용)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_TTS_MODEL: gemini-2.5-flash-preview-tts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+          python -m pip install -r requirements.txt
+      - name: Validate Gemini credential
+        run: |
+          test -n "$GEMINI_API_KEY" || (echo "::error::GEMINI_API_KEY GitHub Secret is missing" && exit 1)
+      - name: Make first Adler psychology short
+        run: python adler_episode_01.py
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: Adler-psychology-01-Gemini-${{ github.run_number }}
+          path: |
+            output_adler_01/adler_psychology_01.mp4
+            output_adler_01/voice_full.wav
+            output_adler_01/captions.srt
+            output_adler_01/script.txt
+            output_adler_01/metadata.json
+            output_adler_01/frame_00.png
+            output_adler_01/frame_06.png
+            output_adler_01/frame_12.png
+          retention-days: 14
+          if-no-files-found: error
+      - name: Review-only notice
+        if: success()
+        run: |
+          echo "### 아들러 심리학 1편 검토용 MP4 제작 완료" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifacts에서 MP4를 내려받으세요. 유튜브 업로드는 수행하지 않았습니다." >> "$GITHUB_STEP_SUMMARY"
