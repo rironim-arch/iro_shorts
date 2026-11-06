@@ -185,7 +185,7 @@ def main():
         run("ffmpeg","-y","-hide_banner","-loglevel","error","-i",str(raw),
             "-filter:a","atempo=1.25","-ac","1","-ar","24000",str(processed))
         group_duration=duration(processed)
-        weights=[max(1,len(re.sub(r"\\s+","",BEATS[i][0]))) for i in indices]
+        weights=[max(1,len("".join(BEATS[i][0].split()))) for i in indices]
         for i,w in zip(indices,weights):
             durations[i]=group_duration*w/sum(weights)
         print(f"Voice group {gi+1}/{len(groups)} duration={group_duration:.2f}s",flush=True)
