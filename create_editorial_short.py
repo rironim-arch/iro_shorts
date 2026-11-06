@@ -121,7 +121,6 @@ def render(topic,i):
     label(d,(293,118),"생활알고리즘",59,WHITE,True)
     rect(d,(700,72,1010,163),p["accent"],30)
     label(d,(855,117),topic["category"],43,BLACK,True)
-    label(d,(65,245),f"{topic['format'].upper()}  /  {i+1:02}",44,p["hero"])
     wrapped(d,topic["title"],540,330,870,65,2,p["deep"])
     scene_diagram(d,topic,i,p)
     # Narrative-specific middle card, big type, safe for Shorts UI.
@@ -130,7 +129,7 @@ def render(topic,i):
     label(d,(138,1285),f"POINT {i+1:02}",45,p["hero"])
     wrapped(d,topic["visuals"][i],553,1450,790,86,3,BLACK)
     label(d,(72,1754),"오늘 바로 써먹는 생활정보",37,INK)
-    label(d,(1013,1754),f"{i+1:02} / {len(topic['scripts']):02}",37,INK)
+    d.text((1004,1754),f"{i+1:02} / {len(topic['scripts']):02}",font=fnt(37),fill=INK,anchor="ra")
     rect(d,(73,1823,1007,1845),"#DCD8D3",9)
     rect(d,(73,1823,73+934*(i+1)/len(topic["scripts"]),1845),p["hero"],9)
     file=OUT/f"scene_{i:02}.png";im.save(file)
