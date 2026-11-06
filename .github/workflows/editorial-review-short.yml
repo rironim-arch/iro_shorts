@@ -1,9 +1,5 @@
 name: 생활알고리즘 검증형 숏츠 제작 (검토용)
 on:
-  push:
-    branches: [main]
-    paths:
-      - editorial_topics.json
   workflow_dispatch:
     inputs:
       topic_id:
