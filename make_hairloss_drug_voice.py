@@ -42,7 +42,7 @@ out = Path("hairloss_drug_voice.wav")
 if "wav" in mime or raw[:4] == b"RIFF":
     out.write_bytes(raw)
 elif "pcm" in mime or "audio/l16" in mime or not mime:
-    m = re.search(r"rate=(\\d+)", mime)
+    m = re.search(r"rate=(\d+)", mime)
     rate = int(m.group(1)) if m else 24000
     with wave.open(str(out), "wb") as wav:
         wav.setnchannels(1)
