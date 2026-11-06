@@ -1,9 +1,5 @@
 name: 생활알고리즘 아들러 심리학 1화 Gemini 제작
 on:
-  push:
-    branches: [main]
-    paths:
-      - adler_episode_01.py
   workflow_dispatch:
 permissions:
   contents: read
