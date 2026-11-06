@@ -1,0 +1,39 @@
+name: 생활알고리즘 탈모약 부작용 Gemini 음성 1회 제작
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - hairloss_drug_request.json
+permissions:
+  contents: read
+jobs:
+  make-voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_TTS_MODEL: gemini-2.5-flash-preview-tts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install SDK
+        run: pip install "google-genai>=1.0.0,<3"
+      - name: Check secret
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY GitHub Actions secret missing"
+            exit 1
+          fi
+      - name: Make Gemini male Korean narration
+        run: python make_hairloss_drug_voice.py
+      - name: Save WAV and script (manual video editing, no publishing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hairloss-medicine-gemini-voice
+          path: |
+            hairloss_drug_voice.wav
+            hairloss_drug_script.txt
+          retention-days: 14
+          if-no-files-found: error
