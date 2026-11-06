@@ -1,0 +1,70 @@
+name: 생활알고리즘 검증형 숏츠 제작 (검토용)
+on:
+  push:
+    branches: [main]
+    paths:
+      - editorial_topics.json
+  workflow_dispatch:
+    inputs:
+      topic_id:
+        description: '편집 검토용 주제 (101~104)'
+        type: choice
+        options:
+          - '101'
+          - '102'
+          - '103'
+          - '104'
+        default: '101'
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: lifestyle-editorial-review
+  cancel-in-progress: false
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      TOPIC_ID: ${{ inputs.topic_id || '101' }}
+      VOICE_NAME: ko-KR-HyunsuMultilingualNeural
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install "Pillow>=10.4,<13" "edge-tts>=7,<9"
+      - name: Check source URLs and script diversity metadata
+        run: |
+          python -m py_compile editorial_quality.py create_editorial_short.py
+          python editorial_quality.py
+      - name: Generate a human-review-only MP4 with timed Korean narration
+        run: python create_editorial_short.py
+      - name: Save review packet (never publishes)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 생활알고리즘-검토용-${{ github.run_number }}
+          path: |
+            output_editorial/review_short.mp4
+            output_editorial/narration.wav
+            output_editorial/captions.srt
+            output_editorial/script.txt
+            output_editorial/sources.txt
+            output_editorial/metadata.json
+            output_editorial/quality_report.json
+            output_editorial/scene_00.png
+            output_editorial/scene_02.png
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Manual review reminder
+        if: success()
+        run: |
+          echo "### 숏츠 초안 완성" >> "$GITHUB_STEP_SUMMARY"
+          echo "출처·내용·장면·AI 공개·저작권·자막 싱크를 사람이 확인해야 합니다." >> "$GITHUB_STEP_SUMMARY"
+          echo "이 작업은 YouTube 업로드를 수행하지 않습니다." >> "$GITHUB_STEP_SUMMARY"
