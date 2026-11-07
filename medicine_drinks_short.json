@@ -1,42 +1,42 @@
 {
-  "title": "생활알고리즘 | 약은 커피 우유 음료와 먹어도 될까?",
+  "title": "생활알고리즘 | 약은 커피 우유 탄산음료와 먹어도 될까?",
   "speed": 1.25,
   "voice": "ko-KR-InJoonNeural",
   "scenes": [
     {
-      "speak": "약, 커피나 우유로 먹어도 될까요? 답은 약마다 다릅니다.",
-      "top": "약은 어떤 음료와 먹을까?",
+      "speak": "약 먹을 때 커피나 우유, 탄산음료로 삼켜도 될까요? 약마다 답이 다릅니다.",
+      "top": "약, 커피·우유·탄산과 먹어도 될까?",
       "caption": "약마다 답이 다릅니다",
       "image": 0
     },
     {
-      "speak": "커피와 차는 철분제 흡수를 방해할 수 있습니다. 영국 NHS는 두 시간 간격을 권합니다.",
-      "top": "커피·차 + 철분제",
-      "caption": "2시간 간격을 권장",
+      "speak": "커피와 차는 철분제의 흡수를 방해할 수 있습니다. 영국 NHS는 두 시간 간격을 권합니다.",
+      "top": "① 커피·차 + 철분제",
+      "caption": "2시간 간격 권장",
       "image": 1
     },
     {
       "speak": "우유 속 칼슘은 일부 항생제의 흡수를 줄입니다. 시프로플록사신은 우유와 함께 먹지 마세요.",
-      "top": "우유 + 일부 항생제",
-      "caption": "시프로플록사신은 주의",
+      "top": "② 우유 + 일부 항생제",
+      "caption": "약 흡수가 줄어들 수 있어요",
       "image": 2
     },
     {
-      "speak": "자몽주스는 일부 약의 체내 농도를 바꿔 부작용 위험을 키울 수 있습니다.",
-      "top": "자몽주스 + 일부 약",
-      "caption": "약물 농도가 달라질 수 있어요",
+      "speak": "탄산음료는 어떨까요? 탄산 자체보다 콜라 속 카페인을 주의해야 할 때가 있습니다.",
+      "top": "③ 탄산음료",
+      "caption": "콜라 속 카페인 주의",
       "image": 3
     },
     {
-      "speak": "모든 약에 똑같이 적용되는 건 아닙니다. 내가 먹는 약의 복용법을 확인하세요.",
-      "top": "모든 약이 같진 않아요",
-      "caption": "내 약의 복용법 확인!",
-      "image": 5
+      "speak": "예를 들어 시프로플록사신은 카페인으로 인한 두근거림과 불면을 더 심하게 할 수 있습니다.",
+      "top": "일부 약과 카페인 상호작용",
+      "caption": "두근거림 · 불면 심해질 수 있어요",
+      "image": 3
     },
     {
-      "speak": "가장 무난한 방법은 물로 복용하기. 다른 음료가 괜찮은지는 약사에게 물어보세요.",
-      "top": "가장 쉬운 방법",
-      "caption": "약은 물과 함께 복용",
+      "speak": "모든 약이 똑같지는 않습니다. 가장 안전한 기본은 물로 복용하고 약 설명서를 확인하는 것입니다.",
+      "top": "가장 좋은 기본은 물",
+      "caption": "약마다 설명서 확인!",
       "image": 4
     },
     {
@@ -49,7 +49,7 @@
   "sources": [
     "https://www.nhs.uk/medicines/ferrous-sulfate/how-and-when-to-take-ferrous-sulfate/",
     "https://www.nhs.uk/medicines/ciprofloxacin/",
-    "https://www.fda.gov/consumers/consumer-updates/grapefruit-juice-and-some-drugs-dont-mix"
-  ],
-  "cut": "Condensed 7 scene script for 40-50 seconds at 1.25x"
+    "https://medlineplus.gov/druginfo/meds/a688016.html",
+    "https://en.jpma.or.jp/about_medicine/guide/med_qa/q26.html"
+  ]
 }
