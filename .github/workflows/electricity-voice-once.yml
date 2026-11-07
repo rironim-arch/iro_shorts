@@ -1,0 +1,29 @@
+name: Electricity 2026 Korean male narration - one off
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - electricity_voice_request.txt
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install speech
+        run: pip install "edge-tts>=7.0.0,<8"
+      - name: Narrate both videos
+        run: python make_electricity_voice.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electricity-longform-short-male-voices
+          path: |
+            electricity_audio/
+            household_electricity_2026_project.json
+          retention-days: 14
+          if-no-files-found: error
