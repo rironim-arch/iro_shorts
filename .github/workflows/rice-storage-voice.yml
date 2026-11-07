@@ -1,0 +1,29 @@
+name: Rice food safety short male voice (one-off)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - rice_storage_short.json
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install voice library
+        run: pip install "edge-tts>=7.0.0,<8"
+      - name: Create scene-by-scene voice
+        run: python make_rice_storage_voice.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rice-storage-male-voice
+          path: |
+            rice_storage_audio/
+            rice_storage_short.json
+          retention-days: 14
+          if-no-files-found: error
