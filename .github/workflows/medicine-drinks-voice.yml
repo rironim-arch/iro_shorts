@@ -1,0 +1,29 @@
+name: Medicine and drinks short male TTS on request
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - medicine_drinks_short.json
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Set up Korean TTS
+        run: pip install "edge-tts>=7.0.0,<8"
+      - name: Create scene audio
+        run: python make_medicine_drinks_voice.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: medicine-drinks-male-voice
+          path: |
+            medicine_drinks_audio/
+            medicine_drinks_short.json
+          retention-days: 10
+          if-no-files-found: error
