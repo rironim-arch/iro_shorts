@@ -10,8 +10,7 @@ async def run():
   for attempt in range(3):
    try:
     await edge_tts.Communicate(scene["say"],"ko-KR-InJoonNeural",rate="-5%").save(str(dest)+".mp3")
-    subprocess.run(["ffmpeg","-nostdin","-hide_banner","-loglevel","error","-y","-i",str(dest)+".mp3","-ar","24000","-ac","1","-c:a","pcm_s16le",str(dest)+".wav"],check=True)
-    print("OK",i,(dest.with_suffix(".wav")).stat().st_size,flush=True)
+    print("OK",i,(dest.with_suffix(".mp3")).stat().st_size,flush=True)
     break
    except Exception as e:
     if attempt==2: raise
