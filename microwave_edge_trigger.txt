@@ -1,1 +1,3 @@
 One-time backup Korean male TTS due to Gemini Flash TTS free daily quota exhaustion. 2026-11-07. No publishing.
+
+Retry 2: upload MP3 chunks directly; convert to WAV locally during video editing.
