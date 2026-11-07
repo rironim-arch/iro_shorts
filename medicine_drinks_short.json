@@ -1,0 +1,66 @@
+{
+  "title": "생활알고리즘 | 약은 커피 우유 음료와 먹어도 될까?",
+  "speed": 1.25,
+  "voice": "ko-KR-InJoonNeural",
+  "scenes": [
+    {
+      "speak": "약 먹을 때, 커피나 우유로 삼킨 적 있으세요? 모두 위험한 건 아니지만, 약에 따라 문제가 될 수 있습니다.",
+      "top": "약, 커피·우유와 먹어도 될까?",
+      "caption": "음료에 따라 달라지는 약 효과",
+      "image": 0
+    },
+    {
+      "speak": "첫째, 커피와 차. 철분제와 가까운 시간에 마시면 철분 흡수가 떨어질 수 있습니다.",
+      "top": "① 커피와 차",
+      "caption": "철분 흡수를 방해할 수 있어요",
+      "image": 1
+    },
+    {
+      "speak": "영국 국민보건서비스는 철분제와 커피, 차 사이에 두 시간 간격을 권합니다.",
+      "top": "철분제 복용 중이라면",
+      "caption": "커피·차와 2시간 간격",
+      "image": 1
+    },
+    {
+      "speak": "둘째, 우유. 칼슘 때문에 일부 항생제의 흡수가 줄어들 수 있습니다.",
+      "top": "② 우유",
+      "caption": "일부 항생제의 흡수 저하",
+      "image": 2
+    },
+    {
+      "speak": "예를 들어 시프로플록사신은 우유나 칼슘 강화 음료와 함께 복용하지 말라고 안내합니다.",
+      "top": "항생제도 종류에 따라 다름",
+      "caption": "시프로플록사신은 우유 주의",
+      "image": 2
+    },
+    {
+      "speak": "셋째, 자몽주스. 일부 약은 체내 약물 농도가 달라져 부작용 위험이 커질 수 있습니다.",
+      "top": "③ 자몽주스",
+      "caption": "일부 약물의 농도 변화",
+      "image": 3
+    },
+    {
+      "speak": "그렇다고 모든 음료가 모든 약에 나쁜 것은 아닙니다. 복용법은 약마다 다릅니다.",
+      "top": "모든 약이 똑같진 않아요",
+      "caption": "내가 먹는 약 설명서 확인",
+      "image": 5
+    },
+    {
+      "speak": "가장 무난한 방법은 물과 함께 복용하고, 다른 음료와의 간격은 약사에게 확인하는 것입니다.",
+      "top": "약은 물로 복용하기",
+      "caption": "특별한 복용법은 약사에게 확인",
+      "image": 4
+    },
+    {
+      "speak": "이 내용은 영국 국민보건서비스와 미국 식품의약국의 지침으로 확인했습니다. 생활알고리즘! 도움이 되셨다면 구독과 좋아요 부탁드립니다.",
+      "top": "오늘의 핵심 정리",
+      "caption": "물과 함께, 설명서 확인!",
+      "image": 5
+    }
+  ],
+  "sources": [
+    "https://www.nhs.uk/medicines/ferrous-sulfate/how-and-when-to-take-ferrous-sulfate/",
+    "https://www.nhs.uk/medicines/ciprofloxacin/",
+    "https://www.fda.gov/consumers/consumer-updates/grapefruit-juice-and-some-drugs-dont-mix"
+  ]
+}
