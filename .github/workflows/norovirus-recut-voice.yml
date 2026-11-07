@@ -1,0 +1,34 @@
+name: Norovirus recut 1.25x scene voice (manual or script change)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - norovirus_recut_script.json
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Gemini SDK
+        run: pip install "google-genai>=1.0.0,<3"
+      - name: Verify key
+        run: test -n "$GEMINI_API_KEY"
+      - name: Render scene-synced TTS
+        run: python make_norovirus_recut_voice.py
+      - name: Collect audio tracks
+        uses: actions/upload-artifact@v4
+        with:
+          name: norovirus-recut-gemini-scenes
+          path: |
+            norovirus_recut_audio/
+            norovirus_recut_script.json
+          retention-days: 14
+          if-no-files-found: error
