@@ -1,0 +1,30 @@
+name: Microwave Korean male backup voice (on demand)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - microwave_edge_trigger.txt
+permissions:
+  contents: read
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install TTS
+        run: pip install "edge-tts>=7.0.0,<8"
+      - name: Make Korean male narration
+        run: python make_microwave_backup_voice.py
+      - name: Deliver scene audio (not uploaded to YouTube)
+        uses: actions/upload-artifact@v4
+        with:
+          name: microwave-male-backup-scenes
+          path: |
+            microwave_audio/
+            microwave_short_request.json
+          retention-days: 7
+          if-no-files-found: error
