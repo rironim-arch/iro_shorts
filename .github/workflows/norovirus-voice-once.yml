@@ -1,0 +1,34 @@
+name: 생활알고리즘 노로바이러스 Gemini 음성 1회 제작
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - norovirus_short_request.json
+permissions:
+  contents: read
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Gemini SDK
+        run: pip install "google-genai>=1.0.0,<3"
+      - name: Validate key
+        run: test -n "$GEMINI_API_KEY"
+      - name: Create Korean male narration
+        run: python make_norovirus_voice.py
+      - name: Save WAV and transcript without publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: norovirus-gemini-voice-once
+          path: |
+            norovirus_voice.wav
+            norovirus_script.txt
+          retention-days: 14
+          if-no-files-found: error
