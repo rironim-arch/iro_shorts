@@ -1,0 +1,34 @@
+name: Microwave container scene-by-scene Gemini voice (one-off)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - microwave_short_request.json
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Gemini Python
+        run: pip install "google-genai>=1.0.0,<3"
+      - name: Check key
+        run: test -n "$GEMINI_API_KEY"
+      - name: Generate voice clips
+        run: python make_microwave_voice.py
+      - name: Save clips without publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: microwave-gemini-voice-scenes
+          path: |
+            microwave_audio/
+            microwave_short_request.json
+          retention-days: 14
+          if-no-files-found: error
