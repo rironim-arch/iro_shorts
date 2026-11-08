@@ -1,0 +1,27 @@
+name: One-time detergent dosing Korean shorts narrator
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - detergent_dose_shorts.json
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'edge-tts>=7.0.0,<8'
+      - run: python make_detergent_dose_voice.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: detergent-dosing-narration
+          path: |
+            detergent_dose_audio/
+            detergent_dose_shorts.json
+          retention-days: 14
+          if-no-files-found: error
