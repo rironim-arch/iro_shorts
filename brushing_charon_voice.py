@@ -47,7 +47,7 @@ for i,text in enumerate(TEXTS):
             ch,rate,width=wav.getnchannels(),wav.getframerate(),wav.getsampwidth()
             frames=wav.readframes(wav.getnframes())
     elif not mime or "pcm" in mime or "audio/l16" in mime:
-        m=re.search(r"rate=(\\d+)",mime)
+        m=re.search("rate=([0-9]+)",mime)
         rate=int(m.group(1)) if m else 24000
         ch,width,frames=1,2,raw
     else: raise RuntimeError("Unsupported audio type "+mime)
