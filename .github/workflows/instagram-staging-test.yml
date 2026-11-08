@@ -1,0 +1,27 @@
+name: Check availability of user-owned public YouTube clip for Instagram
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - instagram_staging_test_trigger.txt
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -U yt-dlp
+      - run: python instagram_staging_test.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ig-staging-test
+          path: |
+            ig_staging_test.json
+            ig_staging_test/
+          retention-days: 1
+          if-no-files-found: error
