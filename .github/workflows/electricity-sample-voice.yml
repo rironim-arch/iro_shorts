@@ -1,0 +1,30 @@
+name: One-off refreshed electricity video sample male TTS
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - electricity_sample_voice_request.json
+permissions:
+  contents: read
+jobs:
+  sample_voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install neural voice library
+        run: pip install "edge-tts>=7.0.0,<8"
+      - name: Render voice samples
+        run: python make_electricity_sample_voice.py
+      - name: Upload sample voice; do not publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: electricity-natural-male-sample
+          path: |
+            electricity_sample_tts/
+            electricity_sample_voice_request.json
+          retention-days: 10
+          if-no-files-found: error
