@@ -1,0 +1,26 @@
+name: Toothbrushing Charon narration tail
+on:
+  push:
+    paths:
+      - '.github/workflows/toothbrushing-tail.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install "google-genai>=1,<2"
+      - run: python toothbrushing_tail_voice.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toothbrushing-charon-tail
+          path: out_tooth_tail/*.wav
+          retention-days: 7
