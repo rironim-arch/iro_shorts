@@ -1,0 +1,39 @@
+name: 생활알고리즘 치킨 Gemini Charon 음성 (검토용)
+on:
+  push:
+    paths:
+      - '.github/workflows/chicken-gemini-narration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install --upgrade pip
+          pip install "google-genai>=1.0,<2.0"
+      - name: Generate Charon Korean narration
+        run: python chicken_gemini_voice.py
+      - name: Voice files for review
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: chicken-charon-gemini-voice
+          path: |
+            output_chicken/chicken_charon.wav
+            output_chicken/chicken_charon.mp3
+            output_chicken/narration_script.txt
+            output_chicken/info.json
+          retention-days: 14
+          if-no-files-found: error
