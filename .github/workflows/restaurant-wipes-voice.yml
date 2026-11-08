@@ -1,0 +1,27 @@
+name: Restaurant wet wipes Korean lifestyle shorts one-off TTS
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - restaurant_wipes_short.json
+permissions:
+  contents: read
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'edge-tts>=7.0.0,<8'
+      - run: python make_restaurant_wipes_voice.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: restaurant-wipes-hyunsu-audio
+          path: |
+            restaurant_wipes_voice/
+            restaurant_wipes_short.json
+          retention-days: 12
+          if-no-files-found: error
