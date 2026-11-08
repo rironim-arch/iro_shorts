@@ -1,0 +1,23 @@
+name: Audit connected public YouTube channel for crossposting
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - channel_audit_request.txt
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python audit_youtube_channel.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: youtube-channel-audit
+          path: channel_audit.json
+          retention-days: 1
