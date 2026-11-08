@@ -1,0 +1,30 @@
+name: Toothbrushing Gemini Pro TTS completion
+on:
+  push:
+    paths:
+      - '.github/workflows/toothbrushing-pro-completion.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "google-genai>=1,<2"
+      - name: Generate missing dental TTS with Gemini Pro
+        run: python toothbrushing_pro_tts.py
+      - name: Retain any audio for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toothbrushing-pro-charon-tail
+          path: out_tooth_pro/*.wav
+          if-no-files-found: warn
+          retention-days: 14
