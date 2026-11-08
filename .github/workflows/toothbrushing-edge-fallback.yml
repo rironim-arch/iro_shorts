@@ -1,0 +1,32 @@
+name: 생활알고리즘 칫솔질 무료 한국어 음성 대체
+on:
+  push:
+    paths:
+      - '.github/workflows/toothbrushing-edge-fallback.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backup-narration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install FFmpeg and speech SDK
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install "edge-tts>=7,<9"
+      - name: Generate coherent voice track in Korean
+        run: python brushing_backup_edge.py
+      - name: Save backup voice and timing
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toothbrushing-edge-voice
+          path: output_brushing_edge/*
+          retention-days: 14
+          if-no-files-found: warn
