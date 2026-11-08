@@ -1,0 +1,32 @@
+name: 생활알고리즘 치킨 - 또렷한 Gemini 음성 재제작
+on:
+  push:
+    paths:
+      - '.github/workflows/chicken-clear-voice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Gemini SDK
+        run: python -m pip install "google-genai>=1.0,<2.0"
+      - name: Generate clear segmented narration
+        run: python chicken_clear_voice.py
+      - name: Save audio for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chicken-charon-clear
+          path: |
+            output_chicken_clear/*
+          retention-days: 14
+          if-no-files-found: warn
