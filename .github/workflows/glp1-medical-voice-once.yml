@@ -1,0 +1,27 @@
+name: One-off GLP1 weight-loss medication side effects Korean shorts TTS
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - glp1_medical_short.json
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'edge-tts>=7.0.0,<8'
+      - run: python make_glp1_medical_voice.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glp1-side-effects-korean-voice
+          path: |
+            glp1_narration/
+            glp1_medical_short.json
+          retention-days: 10
+          if-no-files-found: error
