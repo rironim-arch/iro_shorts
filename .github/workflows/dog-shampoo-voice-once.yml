@@ -1,0 +1,27 @@
+name: Dog human shampoo documentary Korean male narration one-off
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - dog_shampoo_short.json
+permissions:
+  contents: read
+jobs:
+  narrator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "edge-tts>=7.0.0,<8"
+      - run: python make_dog_shampoo_voice.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dog-shampoo-hyunsu-scene-voice
+          path: |
+            dog_shampoo_voice/
+            dog_shampoo_short.json
+          retention-days: 14
+          if-no-files-found: error
