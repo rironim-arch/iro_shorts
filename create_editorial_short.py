@@ -7,6 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from PIL import Image, ImageDraw, ImageFont
 from editorial_quality import run_review, OUT
+from gemini_charon_tts import speech
 
 W,H=1080,1920
 INK="#29343A"; PAPER="#F8F5EE"; WHITE="#FFFFFF"; BLACK="#1C2428"
@@ -16,7 +17,7 @@ COLORS={
  "checklist":{"base":"#EFF8F1","hero":"#398975","accent":"#E8B85F","deep":"#25594E"},
  "comparison":{"base":"#F5F2FC","hero":"#7963A4","accent":"#F2C167","deep":"#4C4072"}
 }
-VOICE=os.getenv("VOICE_NAME","ko-KR-HyunsuMultilingualNeural")
+VOICE="Gemini 2.5 Flash TTS / Charon"
 RATE=1.25
 
 def run(*args):
@@ -145,16 +146,6 @@ def timecode(sec):
     h,ms=divmod(ms,3600000);m,ms=divmod(ms,60000);s,ms=divmod(ms,1000)
     return f"{h:02}:{m:02}:{s:02},{ms:03}"
 
-async def speech(text,dest):
-    import edge_tts
-    for attempt in range(3):
-        try:
-            await edge_tts.Communicate(text,voice=VOICE,rate="+0%").save(str(dest))
-            if dest.stat().st_size<1600: raise RuntimeError("Too small TTS response")
-            return
-        except Exception:
-            if attempt==2:raise
-            await asyncio.sleep(3+attempt*3)
 
 async def main():
     topics=run_review()
@@ -165,10 +156,10 @@ async def main():
     runtime=[];audio_names=[]
     for i,text in enumerate(topic["scripts"]):
         render(topic,i)
-        mp3=OUT/f"audio_{i:02}.mp3"
-        await speech(text,mp3)
+        raw_wav=OUT/f"raw_audio_{i:02}.wav"
+        await speech(text,raw_wav)
         wav=OUT/f"audio_{i:02}.wav"
-        run("ffmpeg","-y","-hide_banner","-loglevel","error","-i",str(mp3),
+        run("ffmpeg","-y","-hide_banner","-loglevel","error","-i",str(raw_wav),
             "-af","atempo=1.25","-ar","24000","-ac","1",str(wav))
         runtime.append(duration(wav))
         audio_names.append(wav)
