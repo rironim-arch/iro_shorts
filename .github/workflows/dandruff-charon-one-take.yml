@@ -1,0 +1,30 @@
+name: 생활알고리즘 비듬 Charon 한 번에 녹음
+on:
+  push:
+    paths:
+      - '.github/workflows/dandruff-charon-one-take.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  singlevoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'google-genai>=1,<2'
+      - name: Record single continuous Charon voiceover
+        run: python dandruff_charon_one_take.py
+      - name: Archive full single-track audio
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dandruff-charon-single-take
+          path: out_dandruff_one_take/*
+          retention-days: 14
+          if-no-files-found: warn
