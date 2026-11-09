@@ -1,0 +1,30 @@
+name: 생활알고리즘 양변기 소변 튐 Charon 6장면 음성
+on:
+  push:
+    paths:
+      - '.github/workflows/toilet-splash-charon.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install "google-genai>=1,<2"
+      - name: Generate six original Charon voice clips
+        run: python toilet_splash_charon_tts.py
+      - name: Archive voice and script
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toilet-splash-charon-six-scenes
+          path: out_toilet_charon/*
+          retention-days: 14
+          if-no-files-found: warn
