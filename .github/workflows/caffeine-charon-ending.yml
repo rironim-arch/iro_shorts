@@ -1,0 +1,28 @@
+name: 생활알고리즘 카페인 마지막 Charon 음성
+on:
+  push:
+    paths:
+      - '.github/workflows/caffeine-charon-ending.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  endvoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install "google-genai>=1,<2"
+      - run: python caffeine_charon_last_line.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: caffeine-charon-ending-only
+          path: out_caffeine_end/*.wav
+          if-no-files-found: warn
+          retention-days: 14
