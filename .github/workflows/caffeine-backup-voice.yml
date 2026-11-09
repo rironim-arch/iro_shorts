@@ -1,0 +1,28 @@
+name: 생활알고리즘 카페인 임시 한국어 음성
+on:
+  push:
+    paths:
+      - '.github/workflows/caffeine-backup-voice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "gTTS>=2.5,<3"
+      - name: Korean voice draft (not Charon)
+        run: python caffeine_sleep_backup_tts.py
+      - name: Save audio for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: caffeine-korean-temp-voice
+          path: out_caffeine_backup/*
+          retention-days: 14
+          if-no-files-found: warn
