@@ -1,0 +1,30 @@
+name: 생활알고리즘 카페인 Charon 음성 생성
+on:
+  push:
+    paths:
+      - '.github/workflows/caffeine-charon.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'google-genai>=1,<2'
+      - name: Create Charon narration in six short clean takes
+        run: python caffeine_sleep_charon.py
+      - name: Archive every generated take for editing
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: caffeine-insomnia-charon-narration
+          path: out_caffeine_charon/*
+          retention-days: 14
+          if-no-files-found: warn
