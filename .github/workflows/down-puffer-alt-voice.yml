@@ -1,0 +1,26 @@
+name: 생활알고리즘 다운패딩 통일 음성
+on:
+  push:
+    paths:
+      - '.github/workflows/down-puffer-alt-voice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  narration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'gTTS>=2.5,<3'
+      - run: python down_puffer_alt_voice.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: down-puffer-single-korean-voice
+          path: out_down_puffer_alt/*
+          retention-days: 14
+          if-no-files-found: warn
