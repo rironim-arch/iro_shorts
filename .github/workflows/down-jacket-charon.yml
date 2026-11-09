@@ -1,0 +1,28 @@
+name: 생활알고리즘 다운패딩 Charon 음성
+on:
+  push:
+    paths:
+      - '.github/workflows/down-jacket-charon.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install "google-genai>=1,<2"
+      - run: python down_jacket_charon_tts.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: down-jacket-charon-audio
+          path: out_down_jacket_charon/*
+          if-no-files-found: warn
+          retention-days: 14
