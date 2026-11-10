@@ -1,0 +1,30 @@
+name: 생활알고리즘 여러 음료 칼로리 Charon 단일 음성
+on:
+  push:
+    paths:
+      - '.github/workflows/drinks-expanded-charon.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'google-genai>=1,<2'
+      - name: Single-take voice using paid Gemini Charon
+        run: python drinks_expanded_charon.py
+      - name: Package voice for short rendering
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drinks-expanded-charon
+          path: out_drinks_expanded/*
+          if-no-files-found: warn
+          retention-days: 14
