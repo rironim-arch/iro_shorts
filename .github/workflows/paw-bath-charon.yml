@@ -1,0 +1,30 @@
+name: 생활알고리즘 강아지 발 핥기 + 욕실 곰팡이 Charon 원테이크
+on:
+  push:
+    paths:
+      - '.github/workflows/paw-bath-charon.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  two_voices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'google-genai>=1,<2'
+      - name: Generate separate continuous Charon performances
+        run: python paw_bath_charon.py
+      - name: Archive wav and source scripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paw-bath-charon-one-take
+          path: out_paw_bath_one_take/*
+          retention-days: 14
+          if-no-files-found: warn
