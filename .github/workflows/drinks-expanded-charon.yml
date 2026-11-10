@@ -28,3 +28,5 @@ jobs:
           path: out_drinks_expanded/*
           if-no-files-found: warn
           retention-days: 14
+
+# Retry after fixing one-take voice API client lifetime.
