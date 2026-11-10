@@ -1,0 +1,30 @@
+name: 생활알고리즘 냉동고기 및 다이소 Charon 단일 음성
+on:
+  push:
+    paths:
+      - '.github/workflows/refreeze-daiso-charon.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'google-genai>=1,<2'
+      - name: Generate two stable Charon single-take narrations
+        run: python refreeze_daiso_one_take.py
+      - name: Archive each narration and scripts for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refreeze-daiso-charon-two-one-takes
+          path: out_new_two_shorts/*
+          retention-days: 14
+          if-no-files-found: warn
