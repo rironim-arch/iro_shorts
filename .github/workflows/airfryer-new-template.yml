@@ -1,0 +1,28 @@
+name: 생활알고리즘 새 틀 샘플 Charon 원테이크
+on:
+  push:
+    paths:
+      - '.github/workflows/airfryer-new-template.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'google-genai>=1,<2'
+      - run: python airfryer_new_template_charon.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: airfryer-new-template-charon
+          path: out_airfryer_template_charon/*
+          retention-days: 7
+          if-no-files-found: warn
