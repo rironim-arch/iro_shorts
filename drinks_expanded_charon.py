@@ -22,7 +22,7 @@ lines=[
 "몰랐던 생활정보, 오늘도 하나 해결! 생활알고리즘, 구독과 좋아요 부탁드립니다."
 ]
 (out/"script.json").write_text(json.dumps(lines,ensure_ascii=False,indent=2),encoding="utf8")
-r=genai.Client(api_key=os.environ["GEMINI_API_KEY"]).models.generate_content(
+client=genai.Client(api_key=os.environ["GEMINI_API_KEY"])\nr=client.models.generate_content(
  model="gemini-2.5-flash-preview-tts",
  contents="Record the ENTIRE following Korean narration as ONE continuous take in the same consistent friendly Korean male Charon voice. This is clear, credible, energetic original nutrition reporting. No voice changes, no speakers other than the single narrator. Speak every Korean word and every sentence ending without skipping. Add slight natural pauses between paragraphs. No song, no invented words. Read EXACTLY:\n\n"+"\n\n".join(lines),
  config=types.GenerateContentConfig(response_modalities=["AUDIO"],
