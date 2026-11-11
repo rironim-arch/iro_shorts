@@ -1,5 +1,8 @@
 name: Finish coffee three uses when Charon voice succeeds
 on:
+  push:
+    paths:
+      - '.github/workflows/coffee-three-uses-final-on-voice.yml'
   workflow_run:
     workflows:
       - "coffee three uses - Gemini voice only fallback"
