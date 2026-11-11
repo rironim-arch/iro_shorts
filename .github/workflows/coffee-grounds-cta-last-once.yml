@@ -8,13 +8,13 @@ permissions:
   contents: write
 jobs:
   export:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Install FFmpeg, PIL, and Korean fonts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk python3-pil
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk python3-pil
       - name: Download the redesigned short
         env:
           GH_TOKEN: ${{ github.token }}
