@@ -21,6 +21,10 @@ jobs:
             --name coffee-grounds-charon-short-review \
             --dir "$RUNNER_TEMP/coffee"
           test -s "$RUNNER_TEMP/coffee/coffee_grounds_review_short.mp4"
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Make lightweight Android-compatible MP4
         run: |
           ffmpeg -hide_banner -loglevel error -y \
