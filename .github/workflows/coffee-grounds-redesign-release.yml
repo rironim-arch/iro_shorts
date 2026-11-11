@@ -1,0 +1,57 @@
+name: Publish redesigned coffee grounds Short
+on:
+  push:
+    paths:
+      - .github/workflows/coffee-grounds-redesign-release.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  redesign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Install FFmpeg and Korean fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk python3-pil
+      - name: Download original Charon Short with caption timing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/source"
+          gh run download 43022952084 --repo "$GITHUB_REPOSITORY" \
+            --name coffee-grounds-charon-short-review --dir "$RUNNER_TEMP/source"
+          test -s "$RUNNER_TEMP/source/coffee_grounds_review_short.mp4"
+          test -s "$RUNNER_TEMP/source/captions.srt"
+      - name: Write editorial redesign script
+        run: |
+          cat > "$RUNNER_TEMP/write_script.py" <<'PY'
+          import base64,gzip, pathlib
+          blob='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'
+          pathlib.Path('redesign_coffee.py').write_bytes(gzip.decompress(base64.b64decode(blob)))
+          PY
+          cd "$RUNNER_TEMP"
+          python3 write_script.py
+      - name: Render shorter visuals, cream background and bottom explanations
+        run: |
+          cd "$RUNNER_TEMP"
+          python3 redesign_coffee.py \
+            --source "$RUNNER_TEMP/source/coffee_grounds_review_short.mp4" \
+            --captions "$RUNNER_TEMP/source/captions.srt" \
+            --output "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4" \
+            --work "$RUNNER_TEMP/render"
+          test -s "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4"
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 \
+            "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4"
+      - name: Publish MP4 for direct Android download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="coffee-grounds-redesign-2026-11-12"
+          gh release create "$tag" "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "생활알고리즘 커피 찌꺼기 활용 - 새 레이아웃" \
+            --notes "배경 크림/커피색, 중앙 실사 프레임 축소, 하단 설명, Charon 음성 유지. 게시 전 검토용." --latest=false
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/coffee_grounds_redesigned_mobile.mp4" >> "$GITHUB_STEP_SUMMARY"
