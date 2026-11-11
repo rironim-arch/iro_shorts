@@ -101,7 +101,11 @@ def main():
  for i,item in enumerate(manifest):
   raw=VOICES/item["file"];assert raw.is_file(),str(raw)
   speed=WORK/f"voice_{i:02}.wav"
-  ff("-i",raw,"-af","atempo=1.25","-ar","24000","-ac","1",speed)
+  # The 2nd Gemini response has an erroneous 25-second silent tail; truncate before speed change.
+  if i==1:
+   ff("-i",raw,"-t","6","-af","atempo=1.25","-ar","24000","-ac","1",speed)
+  else:
+   ff("-i",raw,"-af","atempo=1.25","-ar","24000","-ac","1",speed)
   dur=wav_duration(speed)
   srt.append((offset,offset+dur,item["line"]));offset+=dur
   end=i==len(manifest)-1
@@ -112,7 +116,7 @@ def main():
       "-loop","1","-i",overlay,"-i",speed,
       "-filter_complex","[0:v][1:v]overlay=0:0:shortest=1[v]",
       "-map","[v]","-map","2:a","-t",f"{dur:.3f}",
-      "-c:v","libx264","-preset","veryfast","-crf","28",
+      "-c:v","libx264","-preset","ultrafast","-crf","29",
       "-pix_fmt","yuv420p","-c:a","aac","-b:a","112k",out)
   else:
    t=SCENE_TIMES[i]
