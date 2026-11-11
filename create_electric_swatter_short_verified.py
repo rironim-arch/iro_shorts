@@ -105,7 +105,14 @@ def get_images():
   except Exception as e:
    print("PUBLIC_DOMAIN_PHOTO",filename,"UNAVAILABLE",str(e)[:160],flush=True)
  if not photos:
-  raise RuntimeError("No authentic public-domain swatter images available; refusing to substitute misleading visuals.")
+  # Wikimedia servers can rate-limit runners (429); use original, purpose-drawn illustrations.
+  base=fallback_racket()
+  photos=[base,
+    ImageOps.autocontrast(base.crop((165,45,815,720)).resize((1000,950),Image.Resampling.LANCZOS)),
+    base.transpose(Image.Transpose.FLIP_LEFT_RIGHT),
+    ImageOps.autocontrast(base.crop((325,430,650,930)).resize((1000,950),Image.Resampling.LANCZOS))]
+  notes.append("Video visuals: original programmatically drawn safety illustrations; no external stock used.")
+  print("ILLUSTRATION_FALLBACK: generated 4 original safety visuals",flush=True)
  (ROOT/"image_credits.txt").write_text("\n".join(notes),encoding="utf-8")
  return photos
 
@@ -237,7 +244,7 @@ def main():
  (ROOT/"script.txt").write_text("\n".join(line for line,_,_ in SCENES),encoding="utf-8")
  (ROOT/"sources.txt").write_text("FACT SOURCES\n"+"\n".join(SOURCES)+"\n\nPHOTO CREDIT\n"+
   (ROOT/"image_credits.txt").read_text(encoding="utf-8")+
-  "\nPublic-domain and CC0 photographs are lightly cropped for video illustration; no human electrocution performed.\n",encoding="utf-8")
+  "\nPublic-domain and CC0 photographs, if available, are cropped as illustration. Otherwise original drawings are used. No human electrocution performed.\n",encoding="utf-8")
  (ROOT/"qa.json").write_text(json.dumps({
    "duration":round(offset,2),
    "voice":"Gemini Charon, 1.25x",
@@ -246,7 +253,7 @@ def main():
    "spoken_cta_count":sum(nonmarkup(x["actual"]).count("구독") for x in verified),
    "visual_cta_ending_only":True,
    "photos_count":len(photos),"scenes":verified,
-   "video_type":"Photo-led explainer with original animated timeline, no reenacted electric shock",
+   "video_type":"Illustrated product safety explainer; public-domain photos only if available; no reenacted electric shock",
    "youtube_uploaded":False
  },ensure_ascii=False,indent=2),encoding="utf-8")
  assert final.stat().st_size>300000
