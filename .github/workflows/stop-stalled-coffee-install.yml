@@ -1,0 +1,17 @@
+name: Stop stalled old coffee install before voice build
+on:
+  push:
+    paths:
+      - '.github/workflows/stop-stalled-coffee-install.yml'
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Cancel stalled old run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel 43056730445 --repo "$GITHUB_REPOSITORY"
