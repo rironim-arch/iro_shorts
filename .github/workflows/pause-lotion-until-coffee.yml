@@ -1,0 +1,19 @@
+name: Pause body lotion until coffee is reviewed
+on:
+  push:
+    paths:
+      - '.github/workflows/pause-lotion-until-coffee.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+jobs:
+  pause:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Cancel premature lotion video run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run cancel 43058152624 --repo "$GITHUB_REPOSITORY" || true
+          echo "Body lotion generation paused; finish and review coffee first." >> "$GITHUB_STEP_SUMMARY"
