@@ -107,7 +107,7 @@ def visual_card(idx,caption,ending=False):
 
 S=requests.Session();S.headers.update({"User-Agent":"Mozilla/5.0 (X11; Linux x86_64)"})
 def probe(path):
- r=subprocess.run([FF,"-v","error","-i",str(path),"-f","null","-"],capture_output=True,timeout=20)
+ r=subprocess.run([FF,"-v","error","-i",str(path),"-frames:v","1","-f","null","-"],capture_output=True,timeout=25)
  return r.returncode==0
 
 def stock_download(item):
@@ -175,7 +175,7 @@ def voice_line(idx,line):
    if not data:raise RuntimeError("No speech audio returned")
    wav_write(data.data,data.mime_type,dest)
    transcript=asr(dest)
-   cta_ok=has_cta(transcript) if idx==len(SCENES)-1 else not has_cta(transcript)
+   cta_ok=(normalize(transcript).count("구독")==1 and normalize(transcript).count("좋아요")==1) if idx==len(SCENES)-1 else not has_cta(transcript)
    accuracy=difflib.SequenceMatcher(None,normalize(line),normalize(transcript)).ratio()
    print("VOICE",idx+1,"attempt",attempt+1,"CTA_OK",cta_ok,"ACCURACY",round(accuracy,3),
          "ACTUALLY_SPOKEN",transcript,flush=True)
