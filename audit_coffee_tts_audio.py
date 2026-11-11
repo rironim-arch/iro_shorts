@@ -26,7 +26,7 @@ for i,x in enumerate(data):
     done=None
     for attempt in range(3):
         try:
-            resp=client.models.generate_content(model="gemini-2.5-flash",contents=request)
+            resp=client.models.generate_content(model="gemini-3.8-flash",contents=request)
             done=(resp.text or "").strip()
             if done:break
         except Exception as e:
