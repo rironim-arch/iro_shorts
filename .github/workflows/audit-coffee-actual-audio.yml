@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/audit-coffee-actual-audio.yml'
+      - 'audit_coffee_tts_audio.py'
   workflow_dispatch:
 permissions:
   actions: read
