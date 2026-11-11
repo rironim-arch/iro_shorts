@@ -1,0 +1,82 @@
+name: Publish coffee grounds Short - CTA only once at final ending
+on:
+  push:
+    paths:
+      - .github/workflows/coffee-grounds-cta-last-once.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install FFmpeg, PIL, and Korean fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk python3-pil
+      - name: Download the redesigned short
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download coffee-grounds-redesign-2026-11-12 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'coffee_grounds_redesigned_mobile.mp4' \
+            --dir "$RUNNER_TEMP"
+          test -s "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4"
+      - name: Create a final card with exactly one visual CTA
+        run: |
+          cat > "$RUNNER_TEMP/make_final_card.py" <<'PY'
+          from PIL import Image,ImageDraw,ImageFont
+          from pathlib import Path
+          import sys
+          W,H=720,1280
+          im=Image.new('RGB',(W,H),'#F6F0E7')
+          d=ImageDraw.Draw(im)
+          B='#35241C'; C='#AE6C41'; M='#6C564B'
+          FB='/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc'
+          FR='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'
+          def f(n,b=True):return ImageFont.truetype(FB if b else FR,n)
+          d.rounded_rectangle((30,34,300,104),radius=24,fill=B)
+          d.text((165,69),'생활알고리즘',font=f(34),fill='white',anchor='mm')
+          d.text((690,69),'LIFE NOTE',font=f(19),fill=C,anchor='rm')
+          d.line((26,122,694,122),fill='#D5BDA9',width=3)
+          d.text((360,213),'커피 찌꺼기 활용법',font=f(55),fill=B,anchor='mm')
+          d.text((360,285),'오늘의 핵심 정리',font=f(34,False),fill=M,anchor='mm')
+          d.rounded_rectangle((35,355,685,1020),radius=34,fill='#EDE1D0')
+          d.text((360,480),'생활정보가 도움됐다면',font=f(35,False),fill=M,anchor='mm')
+          d.rounded_rectangle((75,590,645,740),radius=35,fill=B)
+          d.text((360,665),'구독과 좋아요',font=f(66),fill='#FFFFFF',anchor='mm')
+          d.text((360,875),'생활알고리즘',font=f(55),fill=B,anchor='mm')
+          d.text((360,1108),'매일 쓸모 있는 생활정보',font=f(33,False),fill=M,anchor='mm')
+          im.save(sys.argv[1])
+          PY
+          python3 "$RUNNER_TEMP/make_final_card.py" "$RUNNER_TEMP/closing_once.png"
+      - name: Replace final card only; retain original single voice CTA
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -i "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4" \
+            -loop 1 -i "$RUNNER_TEMP/closing_once.png" \
+            -filter_complex "[0:v][1:v]overlay=0:0:enable='gte(t,49.024)':shortest=1[v]" \
+            -map "[v]" -map 0:a:0 \
+            -c:v libx264 -preset veryfast -crf 27 -pix_fmt yuv420p \
+            -c:a copy -movflags +faststart \
+            "$RUNNER_TEMP/coffee_grounds_cta_last_once.mp4"
+          test -s "$RUNNER_TEMP/coffee_grounds_cta_last_once.mp4"
+          ffprobe -v error -show_entries format=duration,size \
+            -of default=nw=1 "$RUNNER_TEMP/coffee_grounds_cta_last_once.mp4"
+      - name: Publish corrected video via direct download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="coffee-grounds-cta-once-2026-11-12"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$RUNNER_TEMP/coffee_grounds_cta_last_once.mp4" \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" "$RUNNER_TEMP/coffee_grounds_cta_last_once.mp4" \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "생활알고리즘 커피 찌꺼기 - 구독과 좋아요 마지막 한 번" \
+              --notes "수정판: CTA 화면은 마지막 49초 이후 단 한 번, 본편에는 표시하지 않음. 기존 Charon 음성과 자막 유지. 검토 후 게시." \
+              --latest=false
+          fi
