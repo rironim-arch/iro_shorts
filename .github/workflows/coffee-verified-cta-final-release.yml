@@ -1,0 +1,81 @@
+name: FINAL coffee short - verified no repeated CTA audio
+on:
+  push:
+    paths:
+      - '.github/workflows/coffee-verified-cta-final-release.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+jobs:
+  render_and_release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install FFmpeg wheel and typography packages
+        run: python -m pip install --quiet --disable-pip-version-check "pillow>=10,<13" "imageio-ffmpeg>=0.5,<1" "requests>=2.31,<3"
+      - name: Get independently transcribed and corrected Gemini Charon audio
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p voice
+          gh run download 43072950868 --repo "$GITHUB_REPOSITORY" --name coffee-clean-voice-no-repeated-cta --dir voice
+          test -s voice/manifest.json
+          test -s voice/actual_audio_qa.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          q=json.loads(Path('voice/actual_audio_qa.json').read_text(encoding='utf-8'))
+          assert q['verified_body_cta_total']==0
+          assert q['verified_final_cta_total']==1
+          assert q['verified_audio_cta_total']==1
+          assert len(q['scenes'])==11
+          print('Actual audio transcripts passed: 0 body CTA, 1 final CTA')
+          PY
+      - name: Get licensed coffee footage, video stream only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download coffee-grounds-short-2026-11-11 --repo "$GITHUB_REPOSITORY" --pattern coffee_grounds_mobile.mp4 --dir .
+          test -s coffee_grounds_mobile.mp4
+      - name: Rebuild every screen and soundtrack with clean speech
+        run: python -u render_coffee_from_charon_voice.py
+      - name: Verify final deliverable
+        run: |
+          test -s coffee_three_uses_release/coffee_grounds_NEW_3_USES.mp4
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          q=json.loads(Path('voice/actual_audio_qa.json').read_text())
+          v=json.loads(Path('coffee_three_uses_release/quality_check.json').read_text())
+          assert q['verified_body_cta_total']==0 and q['verified_audio_cta_total']==1
+          assert v['cta_body_caption_count']==0 and v['cta_visual_scene_count']==1
+          assert Path('coffee_three_uses_release/coffee_grounds_NEW_3_USES.mp4').stat().st_size>1000000
+          print('FINAL QA: one CTA total; last scene only.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coffee-final-verified-review
+          path: |
+            coffee_three_uses_release/coffee_grounds_NEW_3_USES.mp4
+            coffee_three_uses_release/quality_check.json
+            voice/actual_audio_qa.json
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Release fresh MP4 direct download, distinct filename
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=coffee-no-repeated-cta-verified-2026-11-12
+          gh release create "$tag" coffee_three_uses_release/coffee_grounds_NEW_3_USES.mp4 \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "커피 찌꺼기 새 숏츠 - 구독 좋아요 음성 1회 검증" \
+            --notes "11개 실제 음성을 받아쓰기 검증: 본문 0회, 마지막 장면 1회. 기존 잘못된 7개 장면 재녹음, 새 MP4. 검토용이며 자동 유튜브 게시는 하지 않음." \
+            --latest=false
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/coffee_grounds_NEW_3_USES.mp4" >> "$GITHUB_STEP_SUMMARY"
