@@ -1,0 +1,70 @@
+name: 생활알고리즘 겨울 보습 바디로션 - 검증된 Charon 숏츠
+on:
+  push:
+    paths:
+      - '.github/workflows/winter-lotion-verified-charon.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  create:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only pip packages, no apt
+        run: |
+          python -m pip install --quiet --disable-pip-version-check "google-genai>=1,<3" "Pillow>=10,<13" "imageio-ffmpeg>=0.5,<1" "requests>=2.31,<3"
+          python -m py_compile create_winter_lotion_verified_short.py
+      - name: Check that API key is connected
+        run: |
+          test -n "$GEMINI_API_KEY" || (echo "::error::GEMINI_API_KEY missing" && exit 1)
+      - name: Produce lotion video using ASR-verified scene audio
+        run: python -u create_winter_lotion_verified_short.py
+      - name: Fail if any scene accidentally speaks an extra CTA
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path("winter_lotion_final/qa.json").read_text(encoding="utf-8"))
+          assert q["body_cta_count"]==0
+          assert q["final_cta_count"]==1
+          assert sum(x["spoken"].replace(" ","").count("구독") for x in q["scenes"])==1
+          assert sum(x["spoken"].replace(" ","").count("좋아요") for x in q["scenes"])==1
+          assert Path("winter_lotion_final/winter_body_lotion_verified.mp4").stat().st_size>500000
+          print("Quality gate PASS: spoken and visual CTA only at ending")
+          PY
+      - name: Save MP4 plus voice audit and sources
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: winter-lotion-charon-reviewed-short
+          path: |
+            winter_lotion_final/winter_body_lotion_verified.mp4
+            winter_lotion_final/captions.srt
+            winter_lotion_final/script.txt
+            winter_lotion_final/qa.json
+            winter_lotion_final/sources.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Publish downloadable MP4 on GitHub for phone
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="winter-lotion-ingredient-verified-2026-11-12"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" winter_lotion_final/winter_body_lotion_verified.mp4 --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" winter_lotion_final/winter_body_lotion_verified.mp4 \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "생활알고리즘 - 겨울철 고보습 바디로션 성분 3가지" \
+              --notes "AAD 피부과 지침 기반; 글리세린·세라마이드·바셀린/디메치콘, 크림·무향·샤워 직후 보습. 본문 구독 좋아요 0회, 마지막 1회. Gemini Charon 1.25x, 실제 음성 받아쓰기 검수 완료. 검토용, 유튜브 자동 게시 없음." \
+              --latest=false
+          fi
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/winter_body_lotion_verified.mp4" >> "$GITHUB_STEP_SUMMARY"
