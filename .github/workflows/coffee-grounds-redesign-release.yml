@@ -12,10 +12,32 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - name: Install FFmpeg and Korean fonts
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install portable FFmpeg and Korean font via Python packages
         run: |
-          sudo DEBIAN_FRONTEND=noninteractive timeout 160 apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive timeout 160 apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk python3-pil
+          python -m pip install "Pillow>=10,<13" "imageio-ffmpeg>=0.5,<1" "koreanize-matplotlib>=0.1,<1"
+          python - <<'PY'
+          import imageio_ffmpeg, pathlib, koreanize_matplotlib
+          binary=pathlib.Path(imageio_ffmpeg.get_ffmpeg_exe())
+          target=pathlib.Path.home()/'.local/bin'
+          target.mkdir(parents=True,exist_ok=True)
+          (target/'ffmpeg').symlink_to(binary)
+          fonts=list(pathlib.Path(koreanize_matplotlib.__file__).parent.rglob('NanumGothic.ttf'))
+          if not fonts:
+              fonts=list(pathlib.Path(koreanize_matplotlib.__file__).parent.rglob('*.ttf'))
+          if not fonts:raise RuntimeError("No Korean TTF font found")
+          out=pathlib.Path.home()/'noto'
+          out.mkdir(exist_ok=True)
+          (out/'NotoSansCJK-Bold.ttc').symlink_to(fonts[0])
+          (out/'NotoSansCJK-Regular.ttc').symlink_to(fonts[0])
+          print("FFmpeg:",binary,"Font:",fonts[0])
+          PY
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          sudo mkdir -p /usr/share/fonts/opentype/noto
+          sudo ln -sf "$HOME/noto/NotoSansCJK-Bold.ttc" /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc
+          sudo ln -sf "$HOME/noto/NotoSansCJK-Regular.ttc" /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
       - name: Download original Charon Short with caption timing
         env:
           GH_TOKEN: ${{ github.token }}
@@ -43,15 +65,17 @@ jobs:
             --output "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4" \
             --work "$RUNNER_TEMP/render"
           test -s "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4"
-          ffprobe -v error -show_entries format=duration,size -of default=nw=1 \
-            "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4"
       - name: Publish MP4 for direct Android download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="coffee-grounds-redesign-2026-11-12"
-          gh release create "$tag" "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4" \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "생활알고리즘 커피 찌꺼기 활용 - 새 레이아웃" \
-            --notes "배경 크림/커피색, 중앙 실사 프레임 축소, 하단 설명, Charon 음성 유지. 게시 전 검토용." --latest=false
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" "$RUNNER_TEMP/coffee_grounds_redesigned_mobile.mp4" \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "생활알고리즘 커피 찌꺼기 활용 - 새 레이아웃" \
+              --notes "배경 크림/커피색, 중앙 실사 프레임 축소, 하단 설명, Charon 음성 유지. 게시 전 검토용." --latest=false
+          fi
           echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/coffee_grounds_redesigned_mobile.mp4" >> "$GITHUB_STEP_SUMMARY"
