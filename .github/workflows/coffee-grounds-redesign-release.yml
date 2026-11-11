@@ -9,13 +9,13 @@ permissions:
   actions: read
 jobs:
   redesign:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - name: Install FFmpeg and Korean fonts
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk python3-pil
+          sudo DEBIAN_FRONTEND=noninteractive timeout 160 apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive timeout 160 apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk python3-pil
       - name: Download original Charon Short with caption timing
         env:
           GH_TOKEN: ${{ github.token }}
