@@ -1,0 +1,66 @@
+name: Finish coffee three uses when Charon voice succeeds
+on:
+  workflow_run:
+    workflows:
+      - "coffee three uses - Gemini voice only fallback"
+    types:
+      - completed
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+jobs:
+  render_and_release:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install apt-free rendering dependencies
+        run: python -m pip install --quiet --disable-pip-version-check "pillow>=10,<13" "imageio-ffmpeg>=0.5,<1" "requests>=2.31,<3"
+      - name: Download Charon audio from successful voice-only run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          if [ -z "$SOURCE_RUN" ]; then
+            SOURCE_RUN=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow coffee-three-uses-voice-only.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          test -n "$SOURCE_RUN"
+          mkdir -p voice
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name coffee-three-uses-charon-voice --dir voice
+          test -s voice/manifest.json
+      - name: Download earlier Pexels-licensed coffee footage source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download coffee-grounds-short-2026-11-11 --repo "$GITHUB_REPOSITORY" --pattern coffee_grounds_mobile.mp4 --dir .
+          test -s coffee_grounds_mobile.mp4
+      - name: Render new screen cards and narration from scratch
+        run: python -u render_coffee_from_charon_voice.py
+      - name: Upload draft, SRT and QA result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-coffee-three-uses-final-review
+          path: |
+            coffee_three_uses_release/coffee_grounds_NEW_3_USES.mp4
+            coffee_three_uses_release/captions.srt
+            coffee_three_uses_release/quality_check.json
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Publish public Android-compatible MP4 direct download
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="coffee-three-uses-new-script-2026-11-12"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" coffee_three_uses_release/coffee_grounds_NEW_3_USES.mp4 --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" coffee_three_uses_release/coffee_grounds_NEW_3_USES.mp4               --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"               --title "생활알고리즘 - 커피 찌꺼기 새 대본 3가지 활용"               --notes "Gemini Charon 1.25x; 탈취, 종이 염색, 퇴비 3가지; 하단 큰 설명, 중앙 실사. 구독과 좋아요 마지막 엔딩 한 번만. 검토용이며 YouTube 자동 게시 안 함."               --latest=false
+          fi
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/coffee_grounds_NEW_3_USES.mp4" >> "$GITHUB_STEP_SUMMARY"
