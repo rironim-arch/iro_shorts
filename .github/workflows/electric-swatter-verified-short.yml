@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/electric-swatter-verified-short.yml'
+      - 'create_electric_swatter_short_verified.py'
   workflow_dispatch:
 permissions:
   contents: write
