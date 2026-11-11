@@ -1,0 +1,51 @@
+name: Publish coffee-grounds Short as downloadable MP4
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-coffee-grounds-download.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download previously generated and reviewed video artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/coffee"
+          gh run download 43022952084 --repo "$GITHUB_REPOSITORY" \
+            --name coffee-grounds-charon-short-review \
+            --dir "$RUNNER_TEMP/coffee"
+          test -s "$RUNNER_TEMP/coffee/coffee_grounds_review_short.mp4"
+      - name: Make lightweight Android-compatible MP4
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -i "$RUNNER_TEMP/coffee/coffee_grounds_review_short.mp4" \
+            -vf "scale=720:1280:flags=lanczos" \
+            -c:v libx264 -preset veryfast -crf 29 -pix_fmt yuv420p \
+            -c:a aac -b:a 96k -movflags +faststart \
+            "$RUNNER_TEMP/coffee_grounds_mobile.mp4"
+          ffprobe -v error -show_entries format=duration,size \
+            -of default=noprint_wrappers=1 "$RUNNER_TEMP/coffee_grounds_mobile.mp4"
+          test -s "$RUNNER_TEMP/coffee_grounds_mobile.mp4"
+      - name: Publish MP4 as downloadable public release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="coffee-grounds-short-2026-11-11"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$RUNNER_TEMP/coffee_grounds_mobile.mp4" \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" "$RUNNER_TEMP/coffee_grounds_mobile.mp4" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "생활알고리즘 - 커피 찌꺼기 활용 숏츠" \
+              --notes "커피 찌꺼기 활용과 주의사항. Gemini Charon 음성과 큰 자막을 넣은 720x1280 MP4 검토본. 게시 전 화면과 음성, 출처 확인 필요." \
+              --latest=false
+          fi
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/coffee_grounds_mobile.mp4" >> "$GITHUB_STEP_SUMMARY"
