@@ -2,7 +2,8 @@
 Never uploads to YouTube; fail rather than fake moving clips with image zooms.
 """
 from pathlib import Path
-import os, subprocess, json, asyncio, wave, requests
+import os, subprocess, json, asyncio, wave, requests, zipfile
+from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import imageio_ffmpeg
 from gemini_charon_tts import speech
@@ -15,6 +16,13 @@ W,H,FPS=720,1280,15
 FONT="/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"
 if not Path(FONT).exists():
     FONT="/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
+if not Path(FONT).exists():
+    fallback=OUT/"NanumGothic-Bold.ttf"
+    url="https://raw.githubusercontent.com/google/fonts/main/ofl/nanumgothic/NanumGothic-Bold.ttf"
+    resp=requests.get(url,timeout=35);resp.raise_for_status()
+    fallback.write_bytes(resp.content)
+    if fallback.stat().st_size < 100000:raise RuntimeError("Korean font download invalid")
+    FONT=str(fallback)
 # Pexels real-motion videos; no claims that the stock actors have used dish soap.
 STOCK = {
  "soup":(6155936,"https://www.pexels.com/video/close-up-video-of-a-soup-6155936/"),
@@ -100,10 +108,25 @@ def caption_image(idx,t1,t2,duration):
     d.rounded_rectangle((22,1260,698,1266),radius=3,fill="#E7E4E1")
     d.rounded_rectangle((22,1260,22+int(676*t2),1266),radius=3,fill="#DF5E83")
     save=OUT/f"caption_{idx:02}.png";image.save(save);return save
+def fetch_cached_voice(dest):
+    # Already generated in earlier successful Gemini Charon voice workflow.
+    # This avoids a second paid TTS call for the exact same approved narration.
+    token=os.environ.get("GH_ACTION_TOKEN")
+    if not token:raise RuntimeError("GITHUB_TOKEN required to reuse existing Charon audio")
+    url="https://api.github.com/repos/rironim-arch/iro_shorts/actions/artifacts/13927834734/zip"
+    response=requests.get(url,headers={"Authorization":"Bearer "+token,
+        "Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},timeout=45)
+    response.raise_for_status()
+    with zipfile.ZipFile(BytesIO(response.content)) as archive:
+        name=next((n for n in archive.namelist() if n.endswith("kimchi_charon_raw.wav")),None)
+        if not name:raise RuntimeError("Existing Gemini Charon raw WAV not in artifact")
+        dest.write_bytes(archive.read(name))
+    if dest.stat().st_size<100000:raise RuntimeError("Previously generated Charon audio invalid")
+    print("CACHED_CHARON_AUDIO_REUSED",dest.stat().st_size,flush=True)
 async def main():
     (OUT/"sources.txt").write_text(CREDIT+"\n"+"\n".join(v[1] for v in STOCK.values()),encoding="utf-8")
     raw=OUT/"raw_charon.wav"
-    await speech(TEXT,raw)
+    fetch_cached_voice(raw)
     sound=OUT/"charon_125.wav"
     run("-i",raw,"-af","atempo=1.25","-ar","24000","-ac","1",sound)
     with wave.open(str(sound),"rb") as w:duration=w.getnframes()/w.getframerate()
