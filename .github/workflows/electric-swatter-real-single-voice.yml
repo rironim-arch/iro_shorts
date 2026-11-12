@@ -23,7 +23,7 @@ jobs:
           python -m py_compile create_electric_swatter_REAL_SINGLE_VOICE.py
       - name: Verify Gemini API connection
         run: test -n "$GEMINI_API_KEY" || (echo "::error::Gemini API key not configured" && exit 1)
-      - name: Render new video: authentic photographs, motion and single voice
+      - name: 'Render new video: authentic photographs, motion and single voice'
         run: python -u create_electric_swatter_REAL_SINGLE_VOICE.py
       - name: Confirm that video has one uninterrupted voice and final-only CTA
         run: |
