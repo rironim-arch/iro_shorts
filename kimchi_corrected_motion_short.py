@@ -80,8 +80,10 @@ def download(video_id):
     print("VIDEO_UNAVAILABLE",video_id,flush=True)
     return None
 def caption_image(idx,t1,t2,duration):
-    image=Image.new("RGBA",(W,H),(255,255,255,255))
+    image=Image.new("RGBA",(W,H),(0,0,0,0))
     d=ImageDraw.Draw(image)
+    d.rectangle((0,0,W,211),fill=(255,255,255,255))
+    d.rectangle((0,862,W,H),fill=(255,255,255,255))
     # Unchanged channel style: white headline, central motion footage, white lower caption; no full-frame pan.
     d.rounded_rectangle((16,21,182,65),radius=12,fill="#172B35")
     d.text((99,43),"생활알고리즘",anchor="mm",font=font(23),fill="white")
