@@ -1,0 +1,32 @@
+name: dryclean shot archive - royalty free moving footage
+on:
+  push:
+    paths:
+      - '.github/workflows/dryclean-shot-archive.yml'
+      - 'dryclean_clip_fetch.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  clips:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install downloader and ffmpeg
+        run: python -m pip install requests imageio-ffmpeg
+      - name: Retrieve and trim actually moving video clips
+        run: python -u dryclean_clip_fetch.py
+      - name: Archive real motion footage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dryclean-actual-motion-footage
+          path: |
+            dryclean_clips/clip_*.mp4
+            dryclean_clips/status.txt
+          if-no-files-found: warn
+          retention-days: 14
