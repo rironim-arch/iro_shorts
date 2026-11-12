@@ -1,0 +1,37 @@
+name: AlphaGo 2016 versus AI 2026 - Charon narration
+on:
+  push:
+    paths:
+      - 'alphago_2026_charon_voice.py'
+      - '.github/workflows/alphago-2026-charon.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Gemini and FFmpeg
+        run: |
+          python -m pip install --disable-pip-version-check "google-genai>=1,<3" imageio-ffmpeg
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Generate original Charon voice and measured timings
+        run: python -u alphago_2026_charon_voice.py
+      - name: Save approved voice and script without publishing
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alphago-2026-charon-scenes
+          path: |
+            out_alphago_2026_voice/voice_*.wav
+            out_alphago_2026_voice/manifest.json
+          retention-days: 14
+          if-no-files-found: warn
