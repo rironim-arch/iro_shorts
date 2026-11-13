@@ -1,5 +1,5 @@
 """Two medically grounded dog skin Shorts, with single continuous Charon narrations and Pexels licensed moving dog video."""
-import requests,subprocess,os,random,re,json,wave,sys
+import requests,subprocess,os,random,re,json,wave,sys,time
 from pathlib import Path
 import imageio_ffmpeg
 from google import genai
