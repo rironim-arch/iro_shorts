@@ -1,0 +1,36 @@
+name: Dog skin Shorts - Clocidin and five types of disease
+on:
+  push:
+    paths:
+      - 'dog_clocidin_and_skin_conditions_assets.py'
+      - '.github/workflows/dog-clocidin-skin-shorts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dog_short_assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install original Gemini Charon TTS and footage tools
+        run: python -m pip install "google-genai>=1,<3" requests imageio-ffmpeg
+      - name: Record single-take narrator for each video and fetch moving real dog footage
+        run: python -u dog_clocidin_and_skin_conditions_assets.py
+      - name: Archive review assets, not auto-publish
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dog-clocidin-skin-conditions-assets
+          path: |
+            dog_shorts_assets/*_charon_125.wav
+            dog_shorts_assets/*.json
+            dog_shorts_assets/clip_*.mp4
+            dog_shorts_assets/references.txt
+          if-no-files-found: warn
+          retention-days: 14
