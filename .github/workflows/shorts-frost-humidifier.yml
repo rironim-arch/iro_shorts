@@ -1,0 +1,37 @@
+name: Frost & Humidifier Life Algorithm Shorts - Charon
+on:
+  push:
+    paths:
+      - 'shorts_frost_and_humidifier_assets.py'
+      - '.github/workflows/shorts-frost-humidifier.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Gemini and video utilities
+        run: python -m pip install --disable-pip-version-check "google-genai>=1,<3" requests imageio-ffmpeg
+      - name: Make two single-take Charon narrations and capture licensed motion
+        run: python -u shorts_frost_and_humidifier_assets.py
+      - name: Upload unpublished Shorts source assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifealgo-frost-humidifier-nov2026-assets
+          path: |
+            november_two_shorts_assets/*_charon_125.wav
+            november_two_shorts_assets/*_manifest.json
+            november_two_shorts_assets/*.mp4
+            november_two_shorts_assets/sources.txt
+            november_two_shorts_assets/status.json
+          retention-days: 14
+          if-no-files-found: warn
