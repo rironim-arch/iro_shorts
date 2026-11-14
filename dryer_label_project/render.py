@@ -146,18 +146,19 @@ def symbol(draw,cx,cy,size,kind,progress=1):
         draw.line((cx+r,cy-r,cx-r,cy+r),fill=RED,width=20)
     if kind=='low':draw.ellipse((cx-23,cy-23,cx+23,cy+23),fill=INK)
 
-def card(kind):
+def card(kind,phase=2):
     im=Image.new('RGB',(W,1020),WHITE);d=ImageDraw.Draw(im)
     if kind in ['no','low']:
         text_center(d,'옷 안쪽 라벨 · 기호 확대',90,42,GREEN)
-        symbol(d,540,470,330,kind)
-        text_center(d,'건조기 사용 금지' if kind=='no' else '저온 건조',740,74,RED if kind=='no' else GREEN)
-        text_center(d,'저온 코스도 사용하지 않기' if kind=='no' else '옷과 기기의 안내 함께 확인',855,38)
+        symbol(d,540,450,450,kind)
+        if phase>=1:text_center(d,'건조기 사용 금지' if kind=='no' else '저온 건조',750,74,RED if kind=='no' else GREEN)
+        if phase>=2:text_center(d,'저온 코스도 사용하지 않기' if kind=='no' else '옷과 기기의 안내 함께 확인',865,38)
     elif kind=='compare':
         text_center(d,'물세탁 가능',220,86)
-        text_center(d,'≠',405,130,RED)
-        text_center(d,'건조기 사용 가능',625,86)
-        text_center(d,'건조 표시는 따로 확인',825,46,GREEN)
+        if phase>=1:
+            text_center(d,'≠',405,130,RED)
+            text_center(d,'건조기 사용 가능',625,86)
+        if phase>=2:text_center(d,'건조 표시는 따로 확인',825,46,GREEN)
     elif kind=='recap':
         text_center(d,'넣기 전, 라벨 확인',70,64)
         symbol(d,315,430,240,'no');symbol(d,765,430,240,'low')
@@ -173,6 +174,7 @@ def main():
     cues,dur,ratio=alignment(audio)
     footage={name:ASSETS/(name+'.mp4') for name in available if name}
     cards={k:card(k) for k in ['no','low','compare','recap']}
+    card_states={(k,phase):card(k,phase) for k in cards for phase in range(3)}
     # Meaningful scenes follow actual phrase starts. Stock remains at 1x.
     groups=[(0,2,'knit' if 'knit' in footage else 'fold'),(2,5,'no'),(5,7,'low'),(7,10,'fold'),(10,12,'knit' if 'knit' in footage else 'fold'),(12,14,'compare'),(14,15,'load' if 'load' in footage else 'dryer'),(15,18,'recap')]
     scenes=[]
@@ -209,7 +211,12 @@ def main():
                     raise RuntimeError('B-roll shorter than scene; no looping')
                 reader=subprocess.Popen(['ffmpeg','-v','error','-ss',str(source_offset),'-i',str(footage[kind]),'-f','rawvideo','-pix_fmt','rgb24','-'],stdout=subprocess.PIPE)
             previous_scene=scene
-        if kind in cards:visual=cards[kind]
+        if kind in cards:
+            phase=2
+            if kind=='no':phase=0 if t<cues[3]['start'] else (1 if t<cues[4]['start'] else 2)
+            elif kind=='low':phase=0 if t<cues[6]['start'] else 2
+            elif kind=='compare':phase=0 if t<cues[13]['start'] else 2
+            visual=card_states[kind,phase]
         else:
             raw=reader.stdout.read(1020*W*3)
             if len(raw)!=1020*W*3:raise RuntimeError('B-roll decode ended early')
