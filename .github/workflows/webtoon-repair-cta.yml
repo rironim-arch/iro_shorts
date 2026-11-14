@@ -1,0 +1,32 @@
+name: Fix webtoon CTA only at ending
+on:
+  push:
+    paths:
+      - 'webtoon_repair_cta_only_at_end.py'
+      - '.github/workflows/webtoon-repair-cta.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Gemini and ffmpeg
+        run: pip install --disable-pip-version-check "google-genai>=1,<3" imageio-ffmpeg
+      - name: Create two roles in strict spoken order and check CTA
+        run: python -u webtoon_repair_cta_only_at_end.py
+      - name: Upload audio sections and transcript checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webtoon-cta-only-ending-audio
+          path: webtoon_cta_repair_audio/
+          retention-days: 14
+          if-no-files-found: warn
