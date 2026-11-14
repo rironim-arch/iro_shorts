@@ -1,0 +1,30 @@
+name: Grandma Convenience Store Story - Kore Voice
+on:
+  push:
+    paths:
+      - 'triangle_rice_webtoon_voice.py'
+      - '.github/workflows/triangle-rice-webtoon-voice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --disable-pip-version-check "google-genai>=1,<3" imageio-ffmpeg
+      - name: Generate original female narration
+        run: python -u triangle_rice_webtoon_voice.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grandma-story-kore-single-take-audio
+          path: triangle_rice_story_assets/
+          retention-days: 14
+          if-no-files-found: warn
