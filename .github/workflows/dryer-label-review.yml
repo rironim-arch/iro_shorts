@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
-          pip install google-genai pillow requests numpy faster-whisper
+          pip install "google-genai>=1,<3" "pillow>=10,<13" requests numpy faster-whisper
       - name: Produce review video
         run: python -u dryer_label_project/render.py
       - name: Preserve source and review output
