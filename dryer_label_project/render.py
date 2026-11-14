@@ -170,7 +170,7 @@ def card(kind,phase=2):
 def main():
     audio=voice(); print('VOICE_READY',flush=True)
     with ThreadPoolExecutor(max_workers=4) as pool:available=list(pool.map(get_stock,STOCK))
-    if not all(x in available for x in ['dryer','fold']):raise RuntimeError('Essential real footage unavailable')
+    if not all(x in available for x in ['knit','fold','load']):raise RuntimeError('Essential real footage unavailable')
     cues,dur,ratio=alignment(audio)
     footage={name:ASSETS/(name+'.mp4') for name in available if name}
     cards={k:card(k) for k in ['no','low','compare','recap']}
@@ -180,7 +180,7 @@ def main():
     scenes=[]
     for lo,hi,kind in groups:scenes.append((0 if lo==0 else cues[lo]['start'],cues[hi]['start'] if hi<len(cues) else dur,kind))
     base=Image.new('RGB',(W,H),WHITE);d=ImageDraw.Draw(base)
-    text_center(d,'생활알고리즘',60,44,GREEN)
+    text_center(d,'생활알고리즘',55,54,GREEN)
     text_center(d,'건조기 넣기 전\n이 표시부터!',145,83)
     d.rectangle((0,365,W,1375),fill='#E9ECE7')
     # Main imagery fills 1080x1020. Captions stay inside x=100..980,
@@ -198,6 +198,9 @@ def main():
     reader=None;previous_scene=None
     for frame in range(total):
         t=frame/FPS;im=base.copy()
+        if t<cues[1]['start']:
+            hd=ImageDraw.Draw(im);hd.rectangle((0,125,W,360),fill=WHITE)
+            text_center(hd,'멀쩡하던 옷이\n왜 줄었지?',145,83)
         scene=next(s for s in scenes if s[0]<=t<s[1]) if t<dur else scenes[-1]
         start,end,kind=scene
         if scene!=previous_scene:
