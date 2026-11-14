@@ -1,0 +1,35 @@
+name: Dryer label short - Charon and real footage
+on:
+  push:
+    branches: ['codex/dryer-label-short-20261114']
+    paths: ['.github/workflows/dryer-label-review.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  produce:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      HF_HUB_DISABLE_XET: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+          pip install google-genai pillow requests numpy faster-whisper
+      - name: Produce review video
+        run: python -u dryer_label_project/render.py
+      - name: Preserve source and review output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dryer-label-review
+          path: dryer_label_project/
+          retention-days: 14
+          if-no-files-found: error
