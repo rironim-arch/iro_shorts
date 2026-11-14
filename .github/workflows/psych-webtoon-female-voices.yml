@@ -1,0 +1,32 @@
+name: Webtoon Female Voice Auditions - Three Voices
+on:
+  push:
+    paths:
+      - 'psych_webtoon_female_voices.py'
+      - '.github/workflows/psych-webtoon-female-voices.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voices:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install audio tools
+        run: pip install --disable-pip-version-check "google-genai>=1,<3" imageio-ffmpeg
+      - name: Produce three MP3 samples
+        run: python -u psych_webtoon_female_voices.py
+      - name: Upload samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webtoon-female-voices-gacrux-sulafat-kore
+          path: female_voice_samples/
+          retention-days: 14
+          if-no-files-found: warn
