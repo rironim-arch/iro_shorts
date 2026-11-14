@@ -1,0 +1,79 @@
+name: 생활알고리즘 스테인리스 냄비와 1년 냉동고기 2편 제작
+on:
+  push:
+    paths:
+      - '.github/workflows/two-food-real-shorts.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 38
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install video and voice dependencies without apt
+        run: |
+          python -m pip install --quiet --disable-pip-version-check "google-genai>=1,<3" "Pillow>=10,<13" "numpy>=1.26,<3" "requests>=2.31,<3" "imageio-ffmpeg>=0.5,<1"
+          python -m py_compile make_stainless_and_frozen_meat_two_shorts.py
+      - name: Verify key
+        run: test -n "$GEMINI_API_KEY" || (echo "::error::Missing GEMINI_API_KEY" && exit 1)
+      - name: Build both Shorts from actual stock motion and verified uninterrupted Charon narration
+        run: python -u make_stainless_and_frozen_meat_two_shorts.py
+      - name: Enforce quality gate before distribution
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('food_shorts_exports')
+          for key,movie in [('steel','stainless_new_pot_black_residue.mp4'),('meat','frozen_meat_one_year_safety.mp4')]:
+              qa=json.loads((p/f'{key}_voice_QA.json').read_text(encoding='utf-8'))
+              info=json.loads((p/f'{key}_metadata.json').read_text(encoding='utf-8'))
+              assert qa['single_take'] and qa['cta_subscribe_count']==qa['cta_like_count']==1
+              assert qa['similarity']>=.82 and info['body_cta_count']==0 and info['final_cta_count']==1
+              assert info['real_clips_count']>=1 and info['real_photos_count']>=1
+              assert (p/movie).stat().st_size>600000
+              print('PASSED',key,movie,info['duration_seconds'])
+          PY
+      - name: Save drafts and complete audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: two-food-shorts-review
+          path: |
+            food_shorts_exports/stainless_new_pot_black_residue.mp4
+            food_shorts_exports/frozen_meat_one_year_safety.mp4
+            food_shorts_exports/steel_captions.srt
+            food_shorts_exports/meat_captions.srt
+            food_shorts_exports/steel_script.txt
+            food_shorts_exports/meat_script.txt
+            food_shorts_exports/steel_metadata.json
+            food_shorts_exports/meat_metadata.json
+            food_shorts_exports/steel_voice_QA.json
+            food_shorts_exports/meat_voice_QA.json
+            food_shorts_exports/steel_sources.txt
+            food_shorts_exports/meat_sources.txt
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Publish both MP4 files for Android direct download
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="two-lifealgorithm-food-real-2026-11-15"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" food_shorts_exports/stainless_new_pot_black_residue.mp4 food_shorts_exports/frozen_meat_one_year_safety.mp4 --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" food_shorts_exports/stainless_new_pot_black_residue.mp4 food_shorts_exports/frozen_meat_one_year_safety.mp4 \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "생활알고리즘 숏츠 2편 - 스테인리스 검은 때 / 냉동 1년 고기" \
+              --notes "식약처, USDA/FDA 기준으로 검증한 안전 정보. 실사 영상과 사진, 영상마다 한 번에 녹음한 Charon 1.25배속. 실제 음성 받아쓰기에서 구독 좋아요 한 번씩 확인. 자동 유튜브 업로드하지 않음." \
+              --latest=false
+          fi
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/stainless_new_pot_black_residue.mp4" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/frozen_meat_one_year_safety.mp4" >> "$GITHUB_STEP_SUMMARY"
