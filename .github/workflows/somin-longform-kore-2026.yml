@@ -1,0 +1,59 @@
+name: Somin Longform - Gemini Kore 1.25x Senior 1080p
+on:
+  push:
+    paths:
+      - 'somin_longform_story_2026.json'
+      - 'somin_production_2026.py'
+      - 'somin_reference_face_260.jpg.b64'
+      - '.github/workflows/somin-longform-kore-2026.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render:
+    name: Narration + speech-derived subtitles + cinematic slides + MP4
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      HF_HUB_DISABLE_PROGRESS_BARS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install system render tools and Korean fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk fonts-nanum
+      - name: Install production dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "google-genai>=1,<3" "faster-whisper>=1.0,<2" "Pillow>=10,<13"
+      - name: Verify Somin reference image decodes before TTS
+        run: |
+          python - <<'PY'
+          import base64,io
+          from pathlib import Path
+          from PIL import Image
+          raw=base64.b64decode(Path('somin_reference_face_260.jpg.b64').read_text().strip(),validate=True)
+          image=Image.open(io.BytesIO(raw))
+          image.load()
+          print('SOMIN_REFERENCE_VALID',image.size,len(raw))
+          PY
+      - name: Build 8 chapters in single Kore female voice with aligned senior subtitles
+        run: python -u somin_production_2026.py
+      - name: Upload finished video and aligned assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: somin-kore-2026-longform-output
+          path: |
+            somin_2026_output/*.mp4
+            somin_2026_output/*.mp3
+            somin_2026_output/*.srt
+            somin_2026_output/*.ass
+            somin_2026_output/*QA.json
+            somin_2026_output/*captions.json
+          retention-days: 14
+          if-no-files-found: warn
