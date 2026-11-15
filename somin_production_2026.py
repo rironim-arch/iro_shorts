@@ -14,7 +14,7 @@ for p in (OUT,AUDIO,SLIDES):p.mkdir(parents=True,exist_ok=True)
 STORY=json.loads((ROOT/"somin_longform_story_2026.json").read_text(encoding="utf8"))
 SPEED=1.25
 RATE=24000
-CAP=310
+CAP=500
 FF=shutil.which("ffmpeg") or "ffmpeg"
 KEY=os.environ.get("GEMINI_API_KEY","")
 if not KEY:raise RuntimeError("GEMINI_API_KEY secret is absent. Never replace Kore with another voice.")
@@ -48,12 +48,12 @@ def split_chunks(s,cap=CAP):
 def synth(chunk, index):
     final=AUDIO/f"chunk_{index:03d}_125.wav"
     if final.exists() and wavduration(final)>2:return final
-    prompt=("Read ONLY the following Korean script verbatim. You are one Korean woman, Somin, age 49. "
-       "Use ONE consistent native FEMALE Kore voice. It is a first person emotional, grounded life story. "
-       "Act the family dialogue through subtle tone but never switch voices; never add extra lines, "
-       "never skip any sentence, no music, no introduction, no repeated phrases. "
-       "Slow natural mature expression for senior listeners, clear Korean enunciation. "
-       "The only words to speak are these:\n\n"+chunk)
+    prompt=("한국어 오디오북 내레이션. 성우는 49세 한국 여성 소민 한 사람입니다. "
+       "처음부터 끝까지 똑같은 성우의 목소리로, 일정한 음높이와 말투로, 조용하고 따뜻하게 읽으세요. "
+       "중요: 직접 인용된 엄마, 아빠, 동생, 아이의 대사도 다른 사람의 음성으로 연기하거나 성별/연령/목소리를 바꾸지 마세요. "
+       "성우 한 사람의 담백한 낭독만 허용합니다. 우는 연기, 소리 지르기, 캐릭터 목소리, 속삭이기, 음색 전환 금지. "
+       "이전 문장과 다음 문장의 음량, 음색, 속도를 일정하게 유지하고 다음 원문을 빠짐없이 그대로 읽으세요. "
+       "대본 외 말, 음악, 서두와 마무리 멘트는 넣지 마세요.\n\n"+chunk)
     raw=AUDIO/f"chunk_{index:03d}_raw.wav"
     errors=[]
     for retry in range(6):
@@ -77,7 +77,7 @@ def synth(chunk, index):
                 with wave.open(str(raw),"wb") as w:
                     w.setnchannels(1);w.setsampwidth(2);w.setframerate(sr);w.writeframes(blob)
             run([FF,"-y","-hide_banner","-loglevel","error","-i",str(raw),
-               "-af","atempo=1.25","-ar",str(RATE),"-ac","1","-c:a","pcm_s16le",str(final)],180)
+               "-af","atempo=1.25,highpass=f=75,lowpass=f=9500,acompressor=threshold=0.12:ratio=1.6:attack=20:release=200, loudnorm=I=-19:TP=-2:LRA=11","-ar",str(RATE),"-ac","1","-c:a","pcm_s16le",str(final)],180)
             if wavduration(final)<3:raise RuntimeError("Empty or truncated speech")
             raw.unlink(missing_ok=True)
             print("TTS_OK",index,round(wavduration(final),1),"sec",flush=True)
@@ -285,6 +285,154 @@ def render_video(ch_durs,full_duration):
     run(cmd,timeout=9000)
     if target.stat().st_size<1000000:raise RuntimeError("Video file suspiciously small")
     return target,len(slides)
+
+# --- v2 cinematic webtoon adaptation: reference-guided scene storyboard, NOT slide cards ---
+SCENE_BEATS={
+1:[
+"49-year-old Somin learns her mother dismisses two decades of financial help, stunned closeup","Somin confronts her elderly mother in a warm living room, tense eye contact","Early childhood Somin draws on paper with colored pencils, sunlit childhood room","Young Somin says she wants to study art while mother rejects the idea",
+"Father's small business collapses, father staring at accounting papers at night","College-age Somin rushes between school and part-time cashier job","Young Somin sketches commissioned illustrations at her cluttered desk","Mother dresses smartly to meet her friends while family finances crumble",
+"Young Somin works quietly under a desk lamp late at night","Mother's friends gather noisily around a living-room table playing cards","Exhausted Somin asks her mother for quiet at the doorway","Somin cries into the sketchbook alone after mother scolds her"],
+2:[
+"Somin marries a kind Korean man in an intimate simple ceremony","Young couple look worried over hospital bills at their kitchen table","Husband helps Somin's frail father carry grocery bags","Somin transfers money to her parents from a phone at night",
+"Somin stacks monthly bills and accounting paperwork","Somin teaches a lively group of children to paint at her art classroom","Tired Somin and husband share a quiet unhappy moment","Somin signs divorce papers alone at a desk",
+"Single mother Somin calls her elderly mother in a dim living room","Her mother gestures demanding a replacement sofa","Somin reluctantly pays by credit card at furniture shop","Her young son asks a piercing question as Somin hugs him tearfully"],
+3:[
+"After divorce Somin holds her phone and hesitates to send money","Younger brother calls her angrily, Somin listens in shock","Somin opens a drawer of old bank statements","Closeup Somin calculating decades of transfers at a table",
+"Bank statements and receipts scattered around Somin","Somin cries remembering missed holidays with her son","Brother reads photos of remittances on phone and stares amazed","Brother and Somin talk calmly together about aging parents",
+"Brother and Somin enter parents' apartment with a paper envelope","Mother looks uneasy as bank records spread across table","Somin stands up and asks whether her own happiness matters","Mother cries while Somin quietly stands her ground"],
+4:[
+"Somin sits in parked car crying, gripping steering wheel","Somin's young son looks at her kindly across dining table","Somin hugs her son and reassures him","Somin sees three missed calls from mother at night",
+"Phone receives mother's remorseful message, Somin replies","Brother talks to Somin sympathetically on phone","Siblings jointly review realistic living expenses","Mother fiercely objects to moving into a less expensive home",
+"Somin quietly argues with mother about unaffordable rent","Somin examines an old family photograph","Flashback: once-successful father taking care of everything for mother","Somin by the window realizes she has always shouldered family burdens"],
+5:[
+"Older mother dresses elegantly and worries about her social standing","Mother sits in large costly apartment and insists she cannot move","Somin opens household spending spreadsheet during phone call","Mother looks annoyed when Somin suggests budgeting",
+"Frustrated Somin sits alone staring at her accounts","Flashback: schoolgirl Somin is compared harshly with relatives","Somin sketches in childhood while worrying about mother's judgment","Adult Somin calmly resolves to set limits",
+"Somin studies a list of household costs with brother","Elderly mother sits by window looking proud yet fragile","Tense mother and daughter call from separate rooms","Phone rings suddenly with urgent hospital news"],
+6:[
+"Ambulance arrival outside urban Korean hospital at night","Somin rushes into emergency department corridor","Frail elderly father lies in hospital bed monitored by staff","Mother sits frightened beside father's bed",
+"Brother and Somin discuss responsibilities in hospital hallway","Somin calmly tells mother they must decide together","Mother reluctantly opens financial account book","Closeup mother's trembling hands examining expenses",
+"Mother and siblings discuss more affordable home","Mother stares in wonder as Somin talks about art","Somin holds elderly mother's hand gently in the hospital","Family watches sunrise through hospital waiting-room window"],
+7:[
+"Mother says perhaps they should downsize their apartment","Mother packs cherished photo frames carefully into a box","Somin uncovers her forgotten box of art supplies","Somin opens a dusty sketchbook filled with childhood drawings",
+"Closeup Somin remembering freedom of painting","Somin visits an art-therapy training classroom","Somin fills in an adult education registration form","Somin presses submit on her phone, emotional but hopeful",
+"Mother Somin and brother discuss a new boundary with calm respect","Somin tells her young son she will start studying again","Mother and son laugh together while doing homework","Somin paints a new picture in her sunlit small studio"],
+8:[
+"Months later Somin reviews affordable family help budget","Somin and mother meet in a small cozy Korean restaurant","Mother serves Somin her favorite side dish","Somin explains how lonely she felt while helping parents",
+"Mother admits she avoided knowing how Somin suffered","Mother and Somin quietly wipe away tears across restaurant table","Somin lovingly sets a boundary with her mother","Mother holds Somin's hand as they leave restaurant",
+"Mother encourages Somin to continue studying art","Somin walks home under bright afternoon sky","Somin and her young son happily paint together","Somin paints two women walking different paths but still reaching hands"]
+}
+def _board_path(chapter,board):
+    return SLIDES/f"anime_board_{chapter:02d}_{board:02d}.png"
+def _make_board(chapter, board):
+    dest=_board_path(chapter,board)
+    if dest.exists():
+        try:
+            img=Image.open(dest);img.verify();return dest
+        except Exception:dest.unlink()
+    beats=SCENE_BEATS[chapter][board*4:(board+1)*4]
+    face=base64.b64decode((ROOT/"somin_reference_face_260.jpg.b64").read_text().strip())
+    prompt=("MAKE A BEAUTIFUL CINEMATIC KOREAN REALISTIC WEBTOON STORYBOARD, 16:9 LANDSCAPE, EXACTLY "
+       "FOUR SEPARATE PANELS in a precise two-column, two-row grid. Four distinct visual shots "
+       "with clean thin panel dividers; NONE of the panels should have words, letters, typography, captions, logos, UI, or bubbles. "
+       "Depict a dramatic emotional story cinematically using natural Korean interiors, faces, color and lighting. "
+       "The attached face photo is the CHARACTER IDENTITY REFERENCE FOR THE MAIN WOMAN SOMIN ONLY: "
+       "same slim oval face, large dark almond eyes, long straight black-brown hair, refined features, fair skin, pink lips. "
+       "Somin is 49 in adult scenes, looks like the facial reference; younger scenes may age her down. "
+       "Never substitute a different woman's face; mother is a separate 70s Korean woman with short gray permed hair. "
+       "All four panels should be DIFFERENT CAMERA SHOTS with naturally composed full-screen scenes. "
+       "Use elegant realistic Korean drama anime / premium webtoon, soft yet dramatic light, "
+       "camera closeups, medium shots and wide establishing shots, detailed backgrounds, rich expressions. "
+       "DO NOT generate a poster or thumbnail or title; ONLY clean story footage frames. "
+       "Panel top left: "+beats[0]+". Panel top right: "+beats[1]+
+       ". Panel bottom left: "+beats[2]+". Panel bottom right: "+beats[3]+".")
+    errors=[]
+    for attempt in range(4):
+        try:
+            res=client.models.generate_content(
+                model="gemini-2.5-flash-image",
+                contents=[types.Part.from_bytes(data=face,mime_type="image/jpeg"),prompt],
+                config=types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                    image_config=types.ImageConfig(aspect_ratio="16:9")))
+            raw=next((p.inline_data.data for p in res.candidates[0].content.parts
+                      if getattr(p,"inline_data",None) and p.inline_data.data),None)
+            if not raw:raise RuntimeError("No generated image data")
+            im=Image.open(io.BytesIO(raw)).convert("RGB")
+            if im.width<640 or im.height<360:raise RuntimeError("Image resolution too low "+str(im.size))
+            im.save(dest,optimize=True)
+            print("BOARD_OK",chapter,board,im.size,flush=True)
+            return dest
+        except Exception as exc:
+            errors.append(str(exc)[:170]);print("BOARD_RETRY",chapter,board,attempt+1,errors[-1],flush=True)
+            time.sleep(min(10*(attempt+1),45))
+    raise RuntimeError("Webtoon images not generated. Do not fall back to PPT: "+str(errors))
+def _get_panel(chapter,board,panel):
+    out=SLIDES/f"anime_panel_{chapter:02d}_{board:02d}_{panel:02d}.jpg"
+    if out.exists():return out
+    im=Image.open(_make_board(chapter,board)).convert("RGB")
+    w,h=im.size
+    x=(panel%2)*(w//2);y=(panel//2)*(h//2)
+    im=im.crop((x,y,x+w//2,y+h//2))
+    # Crop a thin band off panel dividers, then fill 16:9 frame.
+    im=im.crop((round(im.width*.018),round(im.height*.026),
+                round(im.width*.982),round(im.height*.974)))
+    im=ImageOps.fit(im,(1920,1080),method=Image.Resampling.LANCZOS)
+    im.save(out,quality=88,optimize=True)
+    return out
+def _make_shot(path,chapter,board,panel,phase):
+    dest=SLIDES/f"shot_{chapter:02d}_{board:02d}_{panel:02d}_{phase}.jpg"
+    if dest.exists():return dest
+    im=Image.open(path).convert("RGB")
+    # Three distinct compositions per anime scene (wide, emotional close-up, shifted POV).
+    if phase in (1,2):
+        z=1.13 if phase==1 else 1.19
+        cw=int(1920/z);ch=int(1080/z)
+        center=.44 if phase==1 else .57
+        x=max(0,min(1920-cw,round(1920*center-cw/2)))
+        y=max(0,min(1080-ch,round(1080*.48-ch/2)))
+        im=im.crop((x,y,x+cw,y+ch)).resize((1920,1080),Image.Resampling.LANCZOS)
+    # Gentle bottom gradation only, no distracting slide-style labels or rectangles.
+    cover=Image.new("RGBA",im.size,(0,0,0,0));v=ImageDraw.Draw(cover)
+    for yy in range(830,1080,3):
+        alpha=int(165*(yy-830)/250)
+        v.rectangle((0,yy,1920,min(1080,yy+3)),fill=(0,0,0,alpha))
+    im=Image.alpha_composite(im.convert("RGBA"),cover).convert("RGB")
+    im.save(dest,quality=87,optimize=True)
+    return dest
+def render_video(ch_durs,full_duration):
+    shots=[];duration_sum=0.
+    for chapter,duration in enumerate(ch_durs,1):
+        for board in range(3):
+            _make_board(chapter,board)
+        clips=12*3
+        for j in range(12):
+            board,panel=divmod(j,4)
+            path=_get_panel(chapter,board,panel)
+            for phase in range(3):
+                dest=_make_shot(path,chapter,board,panel,phase)
+                dt=duration/clips
+                shots.append((dest,dt))
+                duration_sum+=dt
+    sequence=OUT/"cinematic_shots.txt"
+    with sequence.open("w",encoding="utf8") as f:
+        for p,dt in shots:
+            pp=str(p.resolve()).replace("'","'\\''")
+            f.write("file '"+pp+"'\n")
+            f.write("duration %.6f\n"%dt)
+        f.write("file '"+str(shots[-1][0].resolve())+"'\n")
+    target=OUT/"somin_2026_cinematic_v2.mp4"
+    # Gentle animated zoom, 6-8 second scene changes, no slideshow title cards.
+    vf="fps=15,zoompan=z='min(zoom+0.00050,1.11)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080:fps=15,ass="+str(OUT/"somin_2026.ass")
+    cmd=[FF,"-y","-hide_banner","-loglevel","error",
+       "-f","concat","-safe","0","-i",str(sequence),"-i",str(OUT/"somin_narration.wav"),
+       "-vf",vf,"-t",f"{full_duration:.3f}","-map","0:v","-map","1:a",
+       "-c:v","libx264","-preset","ultrafast","-crf","24","-pix_fmt","yuv420p",
+       "-c:a","aac","-b:a","128k","-movflags","+faststart",str(target)]
+    print("CINEMATIC_RENDER_START","shots",len(shots),"duration",round(full_duration),flush=True)
+    run(cmd,timeout=9000)
+    if target.stat().st_size<5_000_000:raise RuntimeError("Cinematic output too small")
+    return target,len(shots)
+
 def main():
     idx=0;records=[];chunkmap=[]
     for ch in STORY["chapters"]:
