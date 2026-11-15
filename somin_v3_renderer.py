@@ -4,9 +4,9 @@ import os, math, json, subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 AUDIO=ROOT/"somin_v3_audio_output"
-ART=ROOT/"somin_v3_art"
+ART=ROOT/"somin_v2_art"
 OUT=ROOT/"somin_v3_release";OUT.mkdir(exist_ok=True)
-PLAN=json.loads((ROOT/"somin_v3_scene_plan.json").read_text(encoding="utf8"))
+PLAN=json.loads((ROOT/"somin_v2_scene_plan.json").read_text(encoding="utf8"))
 QA=json.loads((AUDIO/"somin_v3_speech_alignment_QA.json").read_text(encoding="utf8"))
 seconds=QA["chapters"]
 durations=[float(seconds[str(i)]) for i in range(1,9)]
