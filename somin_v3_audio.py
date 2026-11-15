@@ -341,7 +341,7 @@ def main():
         events.append(f"Dialogue: 0,{ass_t(c['start'])},{ass_t(c['end'])},Senior,,0,0,0,,{line}")
     (OUT/"somin_v2.srt").write_text("\n".join(srt),encoding="utf8")
     style="""[Script Info]
-Title: 소민 인생사연 - Kore 1.25
+Title: 소민 인생사연 - Kore 자연속도 1.0
 ScriptType: v4.00+
 PlayResX: 1920
 PlayResY: 1080
