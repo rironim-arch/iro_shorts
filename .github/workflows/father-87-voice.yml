@@ -1,0 +1,37 @@
+name: Father 87 Unsent Messages - One Voice Short
+on:
+  push:
+    paths:
+      - '.github/workflows/father-87-voice.yml'
+      - 'father_87_messages_voice.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ffmpeg and dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install edge-tts "faster-whisper>=1,<2"
+      - name: Generate one-take voice and word-timed transcription
+        run: python -u father_87_messages_voice.py
+      - name: Upload audio and synced word timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: father-87-unsent-messages-125-one-voice
+          path: |
+            father_87_output/father87_125.wav
+            father_87_output/father87_125.mp3
+            father_87_output/words.json
+            father_87_output/narration_script.txt
+          retention-days: 14
+          if-no-files-found: warn
