@@ -12,7 +12,7 @@ OUT=ROOT/"somin_2026_output"
 AUDIO=OUT/"audio_chunks"; SLIDES=OUT/"slides"
 for p in (OUT,AUDIO,SLIDES):p.mkdir(parents=True,exist_ok=True)
 STORY=json.loads((ROOT/"somin_longform_story_2026.json").read_text(encoding="utf8"))
-SPEED=1.25
+SPEED=1.0
 RATE=24000
 CAP=500
 FF=shutil.which("ffmpeg") or "ffmpeg"
@@ -46,7 +46,7 @@ def split_chunks(s,cap=CAP):
     assert "".join(norm(x) for x in out)==norm(text), "Story text split changed content"
     return out
 def synth(chunk, index):
-    final=AUDIO/f"chunk_{index:03d}_125.wav"
+    final=AUDIO/f"chunk_{index:03d}_100.wav"
     if final.exists() and wavduration(final)>2:return final
     prompt=("한국어 오디오북 내레이션. 성우는 49세 한국 여성 소민 한 사람입니다. "
        "처음부터 끝까지 똑같은 성우의 목소리로, 일정한 음높이와 말투로, 조용하고 따뜻하게 읽으세요. "
@@ -77,7 +77,7 @@ def synth(chunk, index):
                 with wave.open(str(raw),"wb") as w:
                     w.setnchannels(1);w.setsampwidth(2);w.setframerate(sr);w.writeframes(blob)
             run([FF,"-y","-hide_banner","-loglevel","error","-i",str(raw),
-               "-af","atempo=1.25,highpass=f=75,lowpass=f=9500,acompressor=threshold=0.12:ratio=1.6:attack=20:release=200, loudnorm=I=-19:TP=-2:LRA=11","-ar",str(RATE),"-ac","1","-c:a","pcm_s16le",str(final)],180)
+               "-af","highpass=f=75,lowpass=f=9500,acompressor=threshold=0.12:ratio=1.6:attack=20:release=200, loudnorm=I=-19:TP=-2:LRA=11","-ar",str(RATE),"-ac","1","-c:a","pcm_s16le",str(final)],180)
             if wavduration(final)<3:raise RuntimeError("Empty or truncated speech")
             raw.unlink(missing_ok=True)
             print("TTS_OK",index,round(wavduration(final),1),"sec",flush=True)
@@ -485,7 +485,7 @@ def main():
             output.writeframes(b"\0"*(int(silence*RATE)*2))
     duration=wavduration(fullwav)
     (OUT/"somin_2026_speech_alignment_QA.json").write_text(
-        json.dumps({"duration_seconds":duration,"voice":"Kore","speed":1.25,
+        json.dumps({"duration_seconds":duration,"voice":"Kore","speed":1.0,
          "caption_count":len(allcapt),"chapters":chapter_secs,"qa":QA},ensure_ascii=False,indent=2),encoding="utf8")
     (OUT/"somin_2026_captions.json").write_text(json.dumps(allcapt,ensure_ascii=False,indent=2),encoding="utf8")
     srt=[];events=[]
@@ -495,7 +495,7 @@ def main():
         events.append(f"Dialogue: 0,{ass_t(c['start'])},{ass_t(c['end'])},Senior,,0,0,0,,{line}")
     (OUT/"somin_2026.srt").write_text("\n".join(srt),encoding="utf8")
     style="""[Script Info]
-Title: 소민 인생사연 - Kore 1.25
+Title: 소민 인생사연 - Kore 1.0
 ScriptType: v4.00+
 PlayResX: 1920
 PlayResY: 1080
@@ -509,7 +509,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     (OUT/"somin_2026.ass").write_text(style+"\n".join(events)+"\n",encoding="utf8")
     run([FF,"-y","-hide_banner","-loglevel","error","-i",str(fullwav),
-         "-c:a","libmp3lame","-b:a","128k",str(OUT/"somin_2026_kore125.mp3")],timeout=2700)
+         "-c:a","libmp3lame","-b:a","128k",str(OUT/"somin_2026_kore100.mp3")],timeout=2700)
     # Chapter durations include exactly the 180ms between chunks so scene timing stays aligned.
     target,scene_count=render_video([chapter_secs[i] for i in range(1,9)],duration)
     print("FINISHED",json.dumps({"video":target.name,"bytes":target.stat().st_size,
