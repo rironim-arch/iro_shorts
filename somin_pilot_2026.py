@@ -31,15 +31,15 @@ def charsplit(t,count=2):
 
 story=json.loads((ROOT/"somin_longform_story_2026.json").read_text(encoding="utf8"))
 t=re.sub(r"\s+"," ",story["chapters"][0]["text"]).strip()
-cut=t.rfind(".",0,940)
-if cut<650:raise RuntimeError("Could not identify a safe story boundary")
+cut=t.rfind(".",0,700)
+if cut<560:raise RuntimeError("Could not identify a safe story boundary")
 text=t[:cut+1]
 parts=charsplit(text,2)
-assert len(parts)==2 and len(text)>650
+assert len(parts)==2 and len(text)>560
 (OUT/"pilot_script.txt").write_text(text,encoding="utf8")
 (OUT/"pilot_manifest.json").write_text(json.dumps({
     "fiction":True,"somin_support_duration":"20년 넘게",
-    "voice":"Kore","speed":1.25,"duration_target":"1–2min",
+    "voice":"Kore","speed":1.0,"duration_target":"1–2min",
     "source":"somin_longform_story_2026.json 1부, opening passage",
     "chunks":len(parts),"type":"proof of concept; NOT full film"
 },ensure_ascii=False,indent=2),encoding="utf8")
@@ -80,7 +80,7 @@ for n,part in enumerate(parts,1):
                         o.setframerate(int(rate.group(1)) if rate else 24000)
                         o.writeframes(pkt.data)
                 cmd(ff,"-y","-v","error","-i",str(raw),"-af",
-                    "atempo=1.25,highpass=f=75,lowpass=f=9000,acompressor=threshold=0.11:ratio=1.5:attack=15:release=230",
+                    "highpass=f=75,lowpass=f=9000,acompressor=threshold=0.11:ratio=1.5:attack=15:release=230",
                     "-ar","24000","-ac","1",str(dest),timeout=120)
                 if duration(dest)<8:raise ValueError("TTS output implausibly short")
                 raw.unlink(missing_ok=True)
@@ -247,4 +247,4 @@ cmd(ff,"-y","-v","error","-f","concat","-safe","0","-i",str(seq),
     "-movflags","+faststart",str(target),timeout=9000)
 print("PILOT_FINISHED",json.dumps({"duration":round(total,1),"bytes":target.stat().st_size,
       "base_scenes":12,"edit_cuts":len(shots),"captions":len(captions),
-      "voice":"Kore","speed":1.25,"somin_support":"20 years+"}),flush=True)
+      "voice":"Kore","speed":1.0,"somin_support":"20 years+"}),flush=True)
