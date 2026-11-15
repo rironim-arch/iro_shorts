@@ -56,7 +56,7 @@ def synth(chunk, index):
        "대본 외 말, 음악, 서두와 마무리 멘트는 넣지 마세요.\n\n"+chunk)
     raw=AUDIO/f"chunk_{index:03d}_raw.wav"
     errors=[]
-    for retry in range(6):
+    for retry in range(16):
         try:
             res=client.models.generate_content(
                 model="gemini-2.5-flash-preview-tts",
@@ -83,10 +83,11 @@ def synth(chunk, index):
             print("TTS_OK",index,round(wavduration(final),1),"sec",flush=True)
             return final
         except Exception as err:
-            errors.append(f"{type(err).__name__}:{str(err)[:120]}")
-            print("TTS_RETRY",index,retry+1,errors[-1],flush=True)
+            full_error=str(err)
+            errors.append(f"{type(err).__name__}:{full_error[:1200]}")
+            print("TTS_RETRY",index,retry+1,full_error[:2200],flush=True)
             if final.exists():final.unlink()
-            time.sleep(min(12*(retry+1),65))
+            time.sleep(min(150+30*retry,600) if ("429" in str(err) or "RESOURCE_EXHAUSTED" in str(err)) else min(12*(retry+1),65))
     raise RuntimeError(f"Kore generation failed {index}: {errors}")
 def source_caption_chunks(text, limit=34):
     # Split source text only at words/punctuation; cap characters for two large subtitle lines.
@@ -446,7 +447,7 @@ def main():
         wav=synth(item["original"],item["index"])
         item["wav"]=str(wav);item["duration"]=wavduration(wav)
         audio_files.append(wav)
-        time.sleep(6)
+        time.sleep(30)
     # Transcript timing starts from the rendered, speed-adjusted WAV.
     from faster_whisper import WhisperModel
     model=WhisperModel("base",device="cpu",compute_type="int8",cpu_threads=4,num_workers=1)
