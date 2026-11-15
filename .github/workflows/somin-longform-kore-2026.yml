@@ -1,17 +1,11 @@
-name: Somin Longform - Gemini Kore 1.25x Senior 1080p
+name: Somin Longform - Gemini Kore 1.0x Senior 1080p
 on:
-  push:
-    paths:
-      - 'somin_longform_story_2026.json'
-      - 'somin_production_2026.py'
-      - 'somin_reference_face_260.jpg.b64'
-      - '.github/workflows/somin-longform-kore-2026.yml'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   render:
-    name: Narration + speech-derived subtitles + cinematic slides + MP4
+    name: Narration + speech-derived subtitles + cinematic webtoon + MP4
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
