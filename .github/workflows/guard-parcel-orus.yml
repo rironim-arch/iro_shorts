@@ -1,0 +1,30 @@
+name: Original Guard Parcel Twist - Orus
+on:
+  push:
+    paths:
+      - 'guard_parcel_short_orus.py'
+      - '.github/workflows/guard-parcel-orus.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --disable-pip-version-check "google-genai>=1,<3" imageio-ffmpeg
+      - name: Generate single-take male narration
+        run: python -u guard_parcel_short_orus.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guard-parcel-short-orus-audio
+          path: guard_parcel_audio/
+          retention-days: 7
+          if-no-files-found: warn
