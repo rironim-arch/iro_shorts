@@ -26,8 +26,8 @@ def wavduration(path):
 def norm(s):
     return re.sub(r"[^가-힣A-Za-z0-9]","",unicodedata.normalize("NFKC",s)).lower()
 def split_chunks(s,cap=CAP):
-    text=re.sub(r"\\s+"," ",s).strip()
-    sentences=re.split(r"(?<=[.!?])\\s+",text)
+    text=re.sub(r"\s+"," ",s).strip()
+    sentences=re.split(r"(?<=[.!?])\s+",text)
     out=[];cur=""
     for sentence in sentences:
         if not sentence:continue
@@ -53,7 +53,7 @@ def synth(chunk, index):
        "Act the family dialogue through subtle tone but never switch voices; never add extra lines, "
        "never skip any sentence, no music, no introduction, no repeated phrases. "
        "Slow natural mature expression for senior listeners, clear Korean enunciation. "
-       "The only words to speak are these:\\n\\n"+chunk)
+       "The only words to speak are these:\n\n"+chunk)
     raw=AUDIO/f"chunk_{index:03d}_raw.wav"
     errors=[]
     for retry in range(6):
@@ -72,7 +72,7 @@ def synth(chunk, index):
             blob=pkt.data
             if blob.startswith(b"RIFF"):raw.write_bytes(blob)
             else:
-                match=re.search(r"rate=(\\d+)",pkt.mime_type or "")
+                match=re.search(r"rate=(\d+)",pkt.mime_type or "")
                 sr=int(match.group(1)) if match else RATE
                 with wave.open(str(raw),"wb") as w:
                     w.setnchannels(1);w.setsampwidth(2);w.setframerate(sr);w.writeframes(blob)
@@ -90,7 +90,7 @@ def synth(chunk, index):
     raise RuntimeError(f"Kore generation failed {index}: {errors}")
 def source_caption_chunks(text, limit=34):
     # Split source text only at words/punctuation; cap characters for two large subtitle lines.
-    toks=list(re.finditer(r"\\S+\\s*",text))
+    toks=list(re.finditer(r"\S+\s*",text))
     spans=[];start=None;end=None
     for tok in toks:
         if start is None:start=tok.start()
@@ -272,9 +272,9 @@ def render_video(ch_durs,full_duration):
     def esc_path(p):return str(p.resolve()).replace("'","'\\''")
     with path.open("w",encoding="utf8") as f:
         for p,secs in slides:
-            f.write(f"file '{esc_path(p)}'\\n")
-            f.write(f"duration {secs:.6f}\\n")
-        f.write(f"file '{esc_path(slides[-1][0])}'\\n")
+            f.write(f"file '{esc_path(p)}'\n")
+            f.write(f"duration {secs:.6f}\n")
+        f.write(f"file '{esc_path(slides[-1][0])}'\n")
     target=OUT/"somin_2026_full.mp4"
     cmd=[FF,"-y","-hide_banner","-loglevel","error",
       "-f","concat","-safe","0","-i",str(path),"-i",str(OUT/"somin_narration.wav"),
@@ -328,12 +328,12 @@ def main():
     fullwav=OUT/"somin_narration.wav"
     with wave.open(str(fullwav),"wb") as output:
         output.setnchannels(1);output.setsampwidth(2);output.setframerate(RATE)
-        output.writeframes(b"\\0"*(int(.35*RATE)*2))
+        output.writeframes(b"\0"*(int(.35*RATE)*2))
         for item in chunkmap:
             with wave.open(item["wav"],"rb") as incoming:
                 assert incoming.getframerate()==RATE
                 output.writeframes(incoming.readframes(incoming.getnframes()))
-            output.writeframes(b"\\0"*(int(silence*RATE)*2))
+            output.writeframes(b"\0"*(int(silence*RATE)*2))
     duration=wavduration(fullwav)
     (OUT/"somin_2026_speech_alignment_QA.json").write_text(
         json.dumps({"duration_seconds":duration,"voice":"Kore","speed":1.25,
@@ -341,10 +341,10 @@ def main():
     (OUT/"somin_2026_captions.json").write_text(json.dumps(allcapt,ensure_ascii=False,indent=2),encoding="utf8")
     srt=[];events=[]
     for n,c in enumerate(allcapt,1):
-        srt.append(f"{n}\\n{srt_t(c['start'])} --> {srt_t(c['end'])}\\n{c['text']}\\n")
-        line=two_lines(c["text"])
-        events.append(f"Dialogue: 0,{ass_t(c['start'])},{ass_t(c['end'])},Senior,,0,0,0,,{ass_escape(line)}")
-    (OUT/"somin_2026.srt").write_text("\\n".join(srt),encoding="utf8")
+        srt.append(f"{n}\n{srt_t(c['start'])} --> {srt_t(c['end'])}\n{c['text']}\n")
+        line=two_lines(ass_escape(c["text"]))
+        events.append(f"Dialogue: 0,{ass_t(c['start'])},{ass_t(c['end'])},Senior,,0,0,0,,{line}")
+    (OUT/"somin_2026.srt").write_text("\n".join(srt),encoding="utf8")
     style="""[Script Info]
 Title: 소민 인생사연 - Kore 1.25
 ScriptType: v4.00+
@@ -358,7 +358,7 @@ Style: Senior,Noto Sans CJK KR,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H98000000,-1
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
-    (OUT/"somin_2026.ass").write_text(style+"\\n".join(events)+"\\n",encoding="utf8")
+    (OUT/"somin_2026.ass").write_text(style+"\n".join(events)+"\n",encoding="utf8")
     run([FF,"-y","-hide_banner","-loglevel","error","-i",str(fullwav),
          "-c:a","libmp3lame","-b:a","128k",str(OUT/"somin_2026_kore125.mp3")],timeout=2700)
     # Chapter durations include exactly the 180ms between chunks so scene timing stays aligned.
