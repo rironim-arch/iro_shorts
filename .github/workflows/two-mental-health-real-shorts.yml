@@ -1,0 +1,80 @@
+name: 생활알고리즘 우울증 원인 및 숨은 증상 2편 숏츠
+on:
+  push:
+    paths:
+      - '.github/workflows/two-mental-health-real-shorts.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 38
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install real-video editing and speech dependencies
+        run: |
+          python -m pip install --quiet --disable-pip-version-check "google-genai>=1,<3" "Pillow>=10,<13" "numpy>=1.26,<3" "requests>=2.31,<3" "imageio-ffmpeg>=0.5,<1"
+          python -m py_compile make_two_depression_education_shorts.py
+      - name: Confirm speech API credentials
+        run: test -n "$GEMINI_API_KEY" || (echo "::error::Missing Gemini key" && exit 1)
+      - name: Generate two independently verified Charon narration real-video Shorts
+        run: python -u make_two_depression_education_shorts.py
+      - name: Require verified real footage, exact final CTA, and two playable MP4s
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('mental_health_shorts_exports')
+          for key, filename in [('cause','why_depression_happens.mp4'),('signs','depression_not_always_sad.mp4')]:
+              qa=json.loads((root/f'{key}_voice_QA.json').read_text(encoding='utf-8'))
+              meta=json.loads((root/f'{key}_metadata.json').read_text(encoding='utf-8'))
+              assert qa['single_take'] and qa['cta_subscribe_count']==qa['cta_like_count']==1
+              assert qa['similarity']>=0.82
+              assert meta['real_clips_count']>=1 and meta['real_photos_count']>=1
+              assert meta['body_cta_count']==0 and meta['final_cta_count']==1
+              assert (root/filename).stat().st_size>600000
+              print('VERIFIED', key, filename, meta['duration_seconds'], 'sec')
+          PY
+      - name: Upload two Shorts plus actual speech audit and source credit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mental-health-short-videos-and-qa
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            mental_health_shorts_exports/why_depression_happens.mp4
+            mental_health_shorts_exports/depression_not_always_sad.mp4
+            mental_health_shorts_exports/cause_captions.srt
+            mental_health_shorts_exports/signs_captions.srt
+            mental_health_shorts_exports/cause_script.txt
+            mental_health_shorts_exports/signs_script.txt
+            mental_health_shorts_exports/cause_voice_QA.json
+            mental_health_shorts_exports/signs_voice_QA.json
+            mental_health_shorts_exports/cause_sources.txt
+            mental_health_shorts_exports/signs_sources.txt
+            mental_health_shorts_exports/cause_metadata.json
+            mental_health_shorts_exports/signs_metadata.json
+      - name: Publish MP4 download assets to GitHub release (not YouTube)
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="lifealgorithm-depression-two-real-shorts-2026-11-16"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" mental_health_shorts_exports/why_depression_happens.mp4 mental_health_shorts_exports/depression_not_always_sad.mp4 --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" mental_health_shorts_exports/why_depression_happens.mp4 mental_health_shorts_exports/depression_not_always_sad.mp4 \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "생활알고리즘 우울증의 원인과 의외의 증상 숏츠 2편" \
+              --notes "WHO, NIMH, 질병관리청 공식 자료를 바탕으로 제작한 교육용 Shorts. 실제 Pexels 촬영 영상과 사진, 한 편당 한 번에 녹음한 Charon 1.25배속. 실제 오디오 전수 재인식 검수에서 구독과 좋아요 엔딩 딱 한 번. 릴스나 유튜브 게시 전 사용자 검토용." \
+              --latest=false
+          fi
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/why_depression_happens.mp4" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/depression_not_always_sad.mp4" >> "$GITHUB_STEP_SUMMARY"
