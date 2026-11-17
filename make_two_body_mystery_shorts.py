@@ -55,23 +55,8 @@ CONFIG={
     "구독과 좋아요"
    ]
   ],
-  "videos": [
-   30285724,
-   6944066,
-   6753819,
-   6943543,
-   6944078,
-   9615647,
-   7131559,
-   9355003
-  ],
-  "photos": [
-   6753355,
-   5867015,
-   7505059,
-   6943445,
-   7445246
-  ],
+  "videos": [30285724,6753821,8410558,6753819,8410546,9355003],
+  "photos": [6943445,6753355,7505059,5867015,8057109,7445246],
   "src": [
    "https://health.clevelandclinic.org/why-do-i-feel-like-im-falling-when-im-falling-asleep-video",
    "https://www.sleepfoundation.org/parasomnias/hypnic-jerks"
@@ -183,7 +168,7 @@ def getphoto(id,p):
 
 def getvideo(id,p):
  urls=[f"https://www.pexels.com/video/download/{id}/"]
- for fps in (24,25,30,50):
+ for fps in (24,25,30,50,60):
   for dim in ("720_1280","1280_720","960_540","540_960","1920_1080","1080_1920"):
    urls.append(f"https://videos.pexels.com/video-files/{id}/{id}-hd_{dim}_{fps}fps.mp4")
  for k,url in enumerate(urls):
@@ -217,7 +202,7 @@ def media(key,cfg):
   if getvideo(id,p):
    vids.append(p);credits.append(f"Video Pexels License: https://www.pexels.com/video/{id}/")
  for id in cfg["photos"]:
-  if len(photos)>=3:break
+  if len(photos)>=(5 if key=="sleep" else 3):break
   p=ROOT/f"{key}_photo_{id}.jpg"
   if getphoto(id,p):
    photos.append(p);credits.append(f"Photo Pexels License: https://www.pexels.com/photo/{id}/")
@@ -358,7 +343,7 @@ def render(key,cfg):
       "-filter_complex","[0:v][1:v]overlay=0:0:shortest=1[v]",
       "-map","[v]","-t",f"{seconds:.3f}",
       "-c:v","libx264","-preset","veryfast","-crf","26","-pix_fmt","yuv420p",scene)
-  elif i%4==2:
+  elif (key=="sleep" and i in (0,2,4,6)) or (key!="sleep" and i%4==2):
    img=ImageOps.fit(Image.open(realphotos[i%len(realphotos)]).convert("RGB"),(800,760))
    jpg=ROOT/f"{key}_crop_{i:02}.jpg";img.save(jpg,quality=88)
    ff("-loop","1","-framerate","30","-i",jpg,
