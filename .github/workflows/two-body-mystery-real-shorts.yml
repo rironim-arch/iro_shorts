@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/two-body-mystery-real-shorts.yml'
+      - 'make_two_body_mystery_shorts.py'
   workflow_dispatch:
 permissions:
   contents: write
