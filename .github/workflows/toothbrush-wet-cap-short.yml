@@ -1,0 +1,76 @@
+name: 생활알고리즘 칫솔 젖은 채 밀폐보관의 반전 - 실사 숏츠
+on:
+  push:
+    paths:
+      - '.github/workflows/toothbrush-wet-cap-short.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install video, image and verified-speech dependencies
+        run: |
+          python -m pip install --quiet --disable-pip-version-check "google-genai>=1,<3" "Pillow>=10,<13" "numpy>=1.26,<3" "requests>=2.31,<3" "imageio-ffmpeg>=0.5,<1"
+          python -m py_compile make_toothbrush_storage_short.py
+      - name: Check available Gemini secret
+        run: test -n "$GEMINI_API_KEY" || (echo "::error::GEMINI_API_KEY absent" && exit 1)
+      - name: Render real stock video with one continuous Charon voice and verify actual transcript
+        run: python -u make_toothbrush_storage_short.py
+      - name: Validate hook, factual sources, voice, duration and media
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path('toothbrush_short_exports')
+          voice=json.loads((root/'brush_voice_QA.json').read_text(encoding='utf-8'))
+          info=json.loads((root/'brush_metadata.json').read_text(encoding='utf-8'))
+          script=(root/'brush_script.txt').read_text(encoding='utf-8')
+          assert voice['single_take'] and voice['cta_subscribe_count']==voice['cta_like_count']==1
+          assert voice['similarity']>=0.82 and voice['speed']==1.25
+          assert info['real_clips_count']>=2 and info['real_photos_count']>=4
+          assert info['body_cta_count']==0 and info['final_cta_count']==1
+          assert script.count('구독')==script.count('좋아요')==1
+          assert 38<=info['duration_seconds']<=65, info['duration_seconds']
+          assert (root/'toothbrush_wet_closed_cap_bacteria.mp4').stat().st_size>750000
+          print('PASSED',info['duration_seconds'],'seconds, single Charon voice, 1 CTA, authentic media')
+          PY
+      - name: Preserve MP4, sources, subtitles, and independent transcript for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 생활알고리즘-칫솔-실사-최종본
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            toothbrush_short_exports/toothbrush_wet_closed_cap_bacteria.mp4
+            toothbrush_short_exports/brush_captions.srt
+            toothbrush_short_exports/brush_script.txt
+            toothbrush_short_exports/brush_voice_QA.json
+            toothbrush_short_exports/brush_sources.txt
+            toothbrush_short_exports/brush_metadata.json
+      - name: Upload verified video to GitHub release, no YouTube or Instagram publishing
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="lifealgorithm-toothbrush-wet-cap-2026-11-19"
+          movie="toothbrush_short_exports/toothbrush_wet_closed_cap_bacteria.mp4"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$movie" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" "$movie" \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "생활알고리즘 - 칫솔 젖은 채 뚜껑 씌우면 세균?" \
+              --notes "미국치과의사협회(ADA) 칫솔 세척 및 건조 가이드 기반. Pexels 실제 세면대와 칫솔 실사 영상/사진. 연속 Charon TTS 1.25배속, 독립 음성 받아쓰기 QA, 마지막 구독 좋아요 한 번. 아직 SNS 게시하지 않음." \
+              --latest=false
+          fi
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/toothbrush_wet_closed_cap_bacteria.mp4" >> "$GITHUB_STEP_SUMMARY"
