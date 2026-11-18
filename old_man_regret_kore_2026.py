@@ -46,7 +46,7 @@ for i,txt in enumerate(chapters):
  times.append({"chapter":i+1,"text":txt,"duration":round(dur,3)})
  print("SCENE",i+1,"DURATION",round(dur,2),flush=True)
  time.sleep(1)
- lst=out/"concat.txt"
+lst=out/"concat.txt"
 lst.write_text("\n".join("file 'part_%02d_125.wav'"%i for i in range(len(chapters)))+"\n",encoding="utf8")
 subprocess.run(["ffmpeg","-y","-v","error","-f","concat","-safe","0","-i",str(lst),"-c:a","pcm_s16le",str(out/"old_man_regret_kore_125.wav")],check=True)
 subprocess.run(["ffmpeg","-y","-v","error","-i",str(out/"old_man_regret_kore_125.wav"),"-b:a","128k",str(out/"old_man_regret_kore_125.mp3")],check=True)
