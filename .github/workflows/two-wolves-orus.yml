@@ -1,0 +1,37 @@
+name: Two Wolves - Orus Male Korean Story
+on:
+  push:
+    paths:
+      - '.github/workflows/two-wolves-orus.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install "google-genai>=1,<3"
+      - name: Generate original two wolves male Korean voice
+        run: python -u two_wolves_orus_2026.py
+      - name: Save voice
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: two-wolves-orus-120
+          path: |
+            two_wolves_orus_output/*.wav
+            two_wolves_orus_output/*.mp3
+            two_wolves_orus_output/*.json
+          retention-days: 7
+          if-no-files-found: warn
