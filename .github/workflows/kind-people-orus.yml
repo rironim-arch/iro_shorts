@@ -1,0 +1,37 @@
+name: Kind People - Orus Male TTS
+on:
+  push:
+    paths:
+      - '.github/workflows/kind-people-orus.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install "google-genai>=1,<3"
+      - name: Generate male Korean voice
+        run: python -u kind_people_story_orus_2026.py
+      - name: Upload voice and script
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindness-story-orus-120
+          path: |
+            kind_people_story_out/*.wav
+            kind_people_story_out/*.mp3
+            kind_people_story_out/*.json
+          retention-days: 7
+          if-no-files-found: warn
