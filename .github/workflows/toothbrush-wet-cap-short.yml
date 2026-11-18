@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/toothbrush-wet-cap-short.yml'
+      - 'make_toothbrush_storage_short.py'
   workflow_dispatch:
 permissions:
   contents: write
