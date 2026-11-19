@@ -33,6 +33,10 @@ PANELS=[0,0,1,2,3,3,5,6,3,6,7,7,8,8,8,8,9,10,11,11,11]
 assert len(LINES)==len(PANELS)
 client=genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 def exec_(args):
+ import shutil
+ if args and args[0]=='ffmpeg' and not shutil.which('ffmpeg'):
+  import imageio_ffmpeg
+  args=[imageio_ffmpeg.get_ffmpeg_exe(),*args[1:]]
  subprocess.run(args,check=True)
 def fmt(t):
  ms=round(t*1000)
