@@ -1,0 +1,52 @@
+name: Verify Baekgu Kore Narration ASR
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-baekgu-kore-asr-20261119.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ASR
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg unzip
+          pip install "faster-whisper>=1,<2"
+      - name: Fetch Kore voice artifact
+        run: |
+          gh api /repos/${{ github.repository }}/actions/artifacts/14506596125/zip > /tmp/kore.zip
+          mkdir -p /tmp/kore
+          unzip -qo /tmp/kore.zip -d /tmp/kore
+      - name: Inspect suspicious and final clips
+        run: |
+          python - <<'PY'
+          import json
+          from faster_whisper import WhisperModel
+          m=WhisperModel('small',device='cpu',compute_type='int8')
+          out={}
+          for i in [0,3,10,12]:
+            p=f"/tmp/kore/segment_{i:02d}.wav"
+            segs,info=m.transcribe(p,language='ko',beam_size=5,condition_on_previous_text=False,vad_filter=False)
+            out[str(i)]=[{'start':round(s.start,2),'end':round(s.end,2),'text':s.text} for s in segs]
+            print('SCENE',i,out[str(i)],flush=True)
+          with open('baekgu_asr_check.json','w',encoding='utf8') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          PY
+      - name: Upload transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baekgu-asr-qa-20261119
+          path: baekgu_asr_check.json
+          retention-days: 3
+          if-no-files-found: warn
