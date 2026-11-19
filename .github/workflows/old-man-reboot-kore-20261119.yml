@@ -1,0 +1,38 @@
+name: Old Man Regret Reboot - Kore 1.25x
+on:
+  push:
+    paths:
+      - 'old_man_reboot_kore_20261119.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  kore_narration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install "google-genai>=1,<3"
+      - name: Generate Kore narration and exact segment timings
+        run: python -u old_man_reboot_kore_20261119.py
+      - name: Save output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: old-man-reboot-kore-20261119
+          path: |
+            old_man_reboot_kore_output/*.mp3
+            old_man_reboot_kore_output/*.wav
+            old_man_reboot_kore_output/*.srt
+            old_man_reboot_kore_output/*.json
+          retention-days: 14
+          if-no-files-found: warn
