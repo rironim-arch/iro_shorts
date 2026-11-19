@@ -1,0 +1,28 @@
+name: Fast re-align 74s two wolves voice
+on:
+  push:
+    paths:
+      - '.github/workflows/wolf-asr-fast-20261119.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  transcribe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install speech recognition only
+        run: pip install -q faster-whisper
+      - name: Transcribe audio with actual word timings
+        run: python -u wolf_asr_20261119.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wolf-asr-fast-74s
+          path: wolf_asr_74sec.json
+          retention-days: 5
+          if-no-files-found: warn
