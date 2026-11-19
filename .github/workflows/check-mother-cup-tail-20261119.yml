@@ -1,0 +1,55 @@
+name: Check Mother Cup Last Voice By Whisper
+on:
+  push:
+    paths:
+      - '.github/workflows/check-mother-cup-tail-20261119.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install speech recognizer
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg unzip
+          pip install "faster-whisper>=1,<2"
+      - name: Download original produced Kore voice
+        run: |
+          gh api /repos/${{ github.repository }}/actions/artifacts/14501239041/zip > /tmp/mother_voice.zip
+          mkdir -p /tmp/mothervoice
+          unzip -qo /tmp/mother_voice.zip -d /tmp/mothervoice
+          ls -lh /tmp/mothervoice
+      - name: Transcribe last ten seconds with timestamps
+        run: |
+          python - <<'PY'
+          import os,json
+          from faster_whisper import WhisperModel
+          p='/tmp/mothervoice/mother_cup_kore_125.wav'
+          os.system(f"ffmpeg -y -v error -ss 53 -i {p} /tmp/tail_53.wav")
+          model=WhisperModel('small',device='cpu',compute_type='int8')
+          segments,meta=model.transcribe('/tmp/tail_53.wav',language='ko',beam_size=5,word_timestamps=True,vad_filter=False,condition_on_previous_text=False)
+          out=[]
+          for s in segments:
+            print('RECOG',round(s.start+53,2),round(s.end+53,2),s.text,flush=True)
+            out.append({'start':round(s.start+53,3),'end':round(s.end+53,3),'text':s.text,
+            'words':[{'start':round(w.start+53,3),'end':round(w.end+53,3),'word':w.word} for w in (s.words or [])]})
+          with open('mother_cup_tail_asr.json','w') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          PY
+      - name: Upload transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mother-cup-tail-asr
+          path: mother_cup_tail_asr.json
+          if-no-files-found: warn
+          retention-days: 3
