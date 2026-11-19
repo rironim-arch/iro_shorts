@@ -1,0 +1,37 @@
+name: QA Baekgu Kore speech for unexpected noises
+on:
+  push:
+    paths:
+      - 'baekgu_kore_qa_20261119.py'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unzip ffmpeg
+          pip install "faster-whisper>=1,<2"
+      - name: Download exact original Baekgu voice
+        run: gh api /repos/${{ github.repository }}/actions/artifacts/14506596125/zip > /tmp/baekgu_original.zip
+      - name: Transcribe every individual original Kore segment
+        run: python -u baekgu_kore_qa_20261119.py
+      - name: Save QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baekgu-all-segment-asr
+          path: baekgu_asr_full.json
+          retention-days: 5
+          if-no-files-found: warn
