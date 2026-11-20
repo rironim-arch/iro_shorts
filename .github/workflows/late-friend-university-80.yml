@@ -1,0 +1,31 @@
+name: Late Friend University 80s - Unified Kore
+on:
+  push:
+    paths:
+      - 'late_friend_university_80.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Gemini and packaged FFmpeg
+        run: python -m pip install -q --disable-pip-version-check "google-genai>=1,<3" "imageio-ffmpeg>=0.6"
+      - name: Generate unified Kore voice
+        run: python -u late_friend_university_80.py
+      - name: Upload audio and transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: late-friend-university-kore-80s
+          path: late_friend_80_voice_output/
+          retention-days: 10
+          if-no-files-found: warn
