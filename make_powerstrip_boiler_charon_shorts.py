@@ -4,10 +4,12 @@ from pathlib import Path
 import requests
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+import imageio_ffmpeg
 from google import genai
 from google.genai import types
 
 OUT=Path("powerstrip_boiler_exports");OUT.mkdir(exist_ok=True)
+FF=imageio_ffmpeg.get_ffmpeg_exe()
 W,H=720,1280
 NAVY="#19334D";YELLOW="#FFE05A";CREAM="#FFFDF9";WHITE="#FFFFFF"
 R=requests.Session()
@@ -56,11 +58,14 @@ CFG={
  }
 }
 def ff(*args):
-    subprocess.run(["ffmpeg","-y","-hide_banner","-loglevel","error",*map(str,args)],check=True,timeout=240)
+    subprocess.run([FF,"-y","-hide_banner","-loglevel","error",*map(str,args)],check=True,timeout=240)
 def font_path():
     for p in ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc","/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc","/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"]:
         if Path(p).exists():return p
-    raise RuntimeError("Korean Noto font unavailable")
+    q=OUT/"NanumGothic-Bold.ttf"
+    r=R.get("https://raw.githubusercontent.com/google/fonts/main/ofl/nanumgothic/NanumGothic-Bold.ttf",timeout=20)
+    r.raise_for_status();q.write_bytes(r.content)
+    return str(q)
 FONT=font_path()
 def f(size):return ImageFont.truetype(FONT,size)
 def wavduration(path):
