@@ -213,7 +213,7 @@ def render(key,cfg):
     contents.append("file '"+str(entries[-1][0].resolve())+"'")
     concat.write_text("\n".join(contents)+"\n",encoding="utf-8")
     output=OUT/cfg["filename"]
-    ff("-safe","0","-f","concat","-i",concat,"-i",voice,"-fps_mode","vfr","-r","30",
+    ff("-safe","0","-f","concat","-i",concat,"-i",voice,"-r","30",
        "-map","0:v:0","-map","1:a:0","-vf","scale=1080:1920:flags=lanczos","-c:v","libx264","-preset","veryfast",
        "-crf","23","-pix_fmt","yuv420p","-c:a","aac","-b:a","128k",
        "-t",f"{total:.3f}","-movflags","+faststart",output)
