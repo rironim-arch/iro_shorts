@@ -214,7 +214,7 @@ def render(key,cfg):
     concat.write_text("\n".join(contents)+"\n",encoding="utf-8")
     output=OUT/cfg["filename"]
     ff("-safe","0","-f","concat","-i",concat,"-i",voice,"-fps_mode","vfr","-r","30",
-       "-map","0:v:0","-map","1:a:0","-c:v","libx264","-preset","veryfast",
+       "-map","0:v:0","-map","1:a:0","-vf","scale=1080:1920:flags=lanczos","-c:v","libx264","-preset","veryfast",
        "-crf","23","-pix_fmt","yuv420p","-c:a","aac","-b:a","128k",
        "-t",f"{total:.3f}","-movflags","+faststart",output)
     (OUT/(key+"_captions.srt")).write_text("\n".join(
@@ -223,7 +223,7 @@ def render(key,cfg):
     (OUT/(key+"_sources.txt")).write_text("\n".join(cfg["urls"]+credits),encoding="utf-8")
     meta={"title":" ".join(cfg["headline"]),"video":output.name,"seconds":round(total,2),
           "narration":"Gemini 2.5 Flash TTS / Charon / 1.25x","layout":"white header, full-height photograph, large outlined captions over footage",
-          "1080x1920_requested":False,"size":"720x1280","shots":len(cfg["lines"]),
+          "1080x1920_requested":True,"size":"1080x1920","shots":len(cfg["lines"]),
           "caption_chunks":len(srt),"subscribe_once":True,"upload_to_youtube":False}
     (OUT/(key+"_meta.json")).write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding="utf-8")
     assert output.stat().st_size>300000
