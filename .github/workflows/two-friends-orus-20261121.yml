@@ -1,10 +1,11 @@
 name: Two Friends Webtoon Gemini Orus - Review MP4
 on:
-  push:
-    paths:
-      - '.github/workflows/two-friends-orus-20261121.yml'
-      - 'two_friends_orus_20261121.py'
   workflow_dispatch:
+    inputs:
+      source_video_url:
+        description: "Approved temporary HTTPS source video URL (do not put this in a public commit)"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -13,7 +14,7 @@ jobs:
     timeout-minutes: 45
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      SOURCE_VIDEO_URL: "https://storage.googleapis.com/vidiq-user-videos/e12c8422-2c00-4502-b8d1-ce48b534a1a2/9a3f199f-0529-40bf-b289-90000adb882e.mp4?GoogleAccessId=ai-proxy-20261001%40studious-pen-429.vid.io.iam.gserviceaccount.com&Expires=1795847248&Signature=r%2FaDDsPaJ5I2hSxq3i28i2v%2FWY%2BrRnTB54PLzTxiiyYwFlWBO%2FGASBL7Uy9WlThe0KHjonuzhgGVXCyxpezD538QfTakDu2kgHM7hEUqGWctyLkf2RnEF0Ee%2Bmdq9Cu2wL%2BuPPaMHBC%2BNWzfn2J%2FfBXiRh%2BUhOJeHPHCet%2F9LX1DKxXmQTybqczQoVnpockx126QvJi6NF%2Bt4kSGKxnijBtyHs4aF2cCCKJ1llvz5enBkcsCs%2BT6AOhpqJbmnTRgH3rVAB9ivIoO9iXPogUu73NDT0EPfOIM%2F6Ymwqf4tTqnUjA8fW8FojzVbF2gfhI2K9cp%2FjncKs0aDNtLaT0P0g%3D%3D"
+      SOURCE_VIDEO_URL: ${{ inputs.source_video_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,11 +25,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           python -m pip install --disable-pip-version-check "google-genai>=1,<3"
-      - name: Generate male Orus audio with per-line timings and render webtoon MP4
+      - name: Generate Orus audio and assemble draft
         run: python -u two_friends_orus_20261121.py
-      - name: Archive private review results (do not publish)
-        if: always()
+      - name: Private review only - no posting
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: two-friends-orus-review-30fps
           path: |
@@ -37,5 +38,5 @@ jobs:
             two_friends_orus_output/gemini_orus_master.mp3
             two_friends_orus_output/two_friends_actual_tts.srt
             two_friends_orus_output/qa.json
-          if-no-files-found: warn
           retention-days: 7
+          if-no-files-found: warn
