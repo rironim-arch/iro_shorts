@@ -30,6 +30,8 @@ def generate(role,voice,lines,key=None):
        "Speak the COMPLETE last sentence including the ending syllables; leave 0.5 seconds silence after the last sound. "
        "No background sound, music, breathing performance or special effects.\n\n"+
        "\n\n".join(lines))
+    if role=="narrator" and len(lines)==1:
+        prompt=("당신은 성숙한 한국어 여성 나레이터 Kore입니다. 아래 대본 한 문장만 또박또박 읽으세요. 목소리는 차분하고 따뜻하게 유지하세요. 다른 말이나 음악은 절대 넣지 마세요. 마지막 글자까지 읽으세요. 대본: "+lines[0])
     packet=None
     for attempt in range(4):
         try:
@@ -65,9 +67,19 @@ def generate(role,voice,lines,key=None):
 for role,voice in VOICES.items():
     lines=[t[1] for t in TURNS if t[0]==role]
     if role=="narrator":
-        for i in range(0,len(lines),2):
-            partname="narrator_part"+str(i//2)
-            small=lines[i:i+2]
+        for partnum in range(4):
+            small=lines[partnum*2:partnum*2+2]
+            partname="narrator_part"+str(partnum)
+            prev=__import__("pathlib").Path("oldparts")/(partname+"_master.wav")
+            if not prev.exists():raise RuntimeError("Missing clean narrator part "+str(prev))
+            audio=OUT/(partname+"_master.wav")
+            shutil.copy2(prev,audio)
+            with wave.open(str(audio),"rb") as w:secs=w.getnframes()/w.getframerate()
+            print("REUSING_VALID_KORE_PART",partname,round(secs,2),flush=True)
+            meta[partname]={"voice":voice,"source":audio.name,"seconds":secs,"lines":small}
+        for k in range(8,len(lines)):
+            small=[lines[k]]
+            partname="narrator_part"+str(k-4)
             audio,secs=generate(role,voice,small,key=partname)
             meta[partname]={"voice":voice,"source":audio.name,"seconds":secs,"lines":small}
     else:
@@ -159,7 +171,7 @@ for pos,(role,text,scene) in enumerate(TURNS):
                    "last_word_buffer_sec":item["last_word_buffer_seconds"]})
 output={"video":"Friends Funeral Trip to Jeju","original_fiction":True,"story_version":1,
   "audio_raw_seconds":round(sum(x["duration"] for x in ordered),3),"target_tempo":1.25,
-  "audio_takes":{"narrator":6,"father":1,"son":1,"friend":1,"cta":1},
+  "audio_takes":{"narrator":7,"father":1,"son":1,"friend":1,"cta":1},
   "turns":ordered,"roles":meta,"qa":qa,"important_note":"Do not force-truncate; preserve every word and add trailing 0.18s if needed."}
 (OUT/"manifest.json").write_text(json.dumps(output,ensure_ascii=False,indent=2),encoding="utf-8")
 print("PREPARED_AND_QA_COMPLETE",len(ordered),"original_voice_seconds",output["audio_raw_seconds"],flush=True)
