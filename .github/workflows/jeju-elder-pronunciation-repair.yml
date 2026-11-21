@@ -1,0 +1,34 @@
+name: Gemini elder Jeju promises pronunciation re-take
+on:
+  push:
+    paths:
+      - '.github/workflows/jeju-elder-pronunciation-repair.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check 'google-genai>=1,<3' 'faster-whisper>=1.1,<2'
+      - name: Record only corrected Jeju promise lines and verify last syllable
+        run: python -u jeju_elder_pronunciation_repair.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jeju-elder-complete-lines
+          path: |
+            jeju_decision_repair/replacement_turn_*.wav
+            jeju_decision_repair/qa.json
+          retention-days: 7
+          if-no-files-found: warn
