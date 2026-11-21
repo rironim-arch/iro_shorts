@@ -1,0 +1,43 @@
+name: Two Friends - Final One-Voice Orus Webtoon 30fps
+on:
+  push:
+    paths:
+      - ".github/workflows/two-friends-single-voice-final.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  composite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 36
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VOICE_RUN_ID: "44876257424"
+      LAYOUT_RUN_ID: "44875911785"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg and Korean speech alignment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check "faster-whisper>=1.1,<2"
+      - name: Verify final words and align one male Orus take to fixed frames
+        run: python -u two_friends_single_voice_composite.py
+      - name: Save final private review MP4 (never post)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: two-friends-one-voice-orus-final-30fps
+          path: |
+            two_friends_one_voice_final/인생애니사연_두친구_단일Orus_최종_30fps.mp4
+            two_friends_one_voice_final/Gemini_Orus_단일녹음.wav
+            two_friends_one_voice_final/Gemini_Orus_단일녹음.mp3
+            two_friends_one_voice_final/실제한목소리_단어정렬자막.srt
+            two_friends_one_voice_final/검수결과.json
+            two_friends_one_voice_final/asr_transcript.txt
+          retention-days: 7
+          if-no-files-found: warn
