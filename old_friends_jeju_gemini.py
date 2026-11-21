@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gemini TTS story: two Korean male friends, one 72, ending at Jeju. Per-voice one take; align by actual ASR words."""
 from pathlib import Path
-import os,re,time,wave,json,subprocess,difflib,unicodedata,math
+import os,re,time,wave,json,subprocess,difflib,unicodedata,math,shutil
 from google import genai
 from google.genai import types
 from faster_whisper import WhisperModel
@@ -20,7 +20,8 @@ def norm(x):return re.sub(r"[^가-힣a-z0-9]","",unicodedata.normalize("NFKC",x)
 assert len(TURNS)==24 and sum("구독과 좋아요" in x[1] for x in TURNS)==1
 api=genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 meta={}
-def generate(role,voice,lines):
+def generate(role,voice,lines,key=None):
+    key=key or role
     prompt=(INSTRUCTIONS[role]+" "
        "Generate exactly one continuous recording of all Korean paragraphs below in the order given. "
        "Speak only those sentences. DO NOT invent extra lines, omit any word, introduce an actor, announce numbers or repeat the last line. "
@@ -48,13 +49,13 @@ def generate(role,voice,lines):
             print("TTS_RETRY",role,attempt,str(e)[:220],flush=True)
             if attempt==3:raise
             time.sleep(8*(attempt+1))
-    raw=OUT/f"{role}_raw.wav"
+    raw=OUT/f"{key}_raw.wav"
     if packet.data[:4]==b"RIFF":raw.write_bytes(packet.data)
     else:
         m=re.search(r"rate=(\d+)",packet.mime_type or "")
         with wave.open(str(raw),"wb") as w:
             w.setnchannels(1);w.setsampwidth(2);w.setframerate(int(m.group(1)) if m else 24000);w.writeframes(packet.data)
-    clean=OUT/f"{role}_master.wav"
+    clean=OUT/f"{key}_master.wav"
     sh("ffmpeg","-y","-v","error","-i",raw,
       "-af","loudnorm=I=-17:TP=-2:LRA=10","-ar","24000","-ac","1",clean)
     with wave.open(str(clean),"rb") as w:d=w.getnframes()/w.getframerate()
@@ -63,8 +64,20 @@ def generate(role,voice,lines):
     return clean,d
 for role,voice in VOICES.items():
     lines=[t[1] for t in TURNS if t[0]==role]
-    audio,secs=generate(role,voice,lines)
-    meta[role]={"voice":voice,"source":audio.name,"seconds":secs,"lines":lines}
+    if role=="narrator":
+        for i in range(0,len(lines),2):
+            partname="narrator_part"+str(i//2)
+            small=lines[i:i+2]
+            audio,secs=generate(role,voice,small,key=partname)
+            meta[partname]={"voice":voice,"source":audio.name,"seconds":secs,"lines":small}
+    else:
+        prev=__import__("pathlib").Path("oldvoices")/(role+"_master.wav")
+        if not prev.exists():raise RuntimeError("Missing old voice "+str(prev))
+        audio=OUT/(role+"_master.wav")
+        shutil.copy2(prev,audio)
+        with wave.open(str(audio),"rb") as w:secs=w.getnframes()/w.getframerate()
+        print("REUSING_VALID_GEMINI_TAKE",role,secs,flush=True)
+        meta[role]={"voice":voice,"source":audio.name,"seconds":secs,"lines":lines}
 print("LOADING_WHISPER_FOR_PRECISE_CUTS",flush=True)
 model=WhisperModel("small",device="cpu",compute_type="int8",cpu_threads=4,num_workers=2)
 files={}
@@ -130,6 +143,11 @@ for role,m in meta.items():
         raise RuntimeError("CTA last phrase missing")
     if role=="father" and not ("드디어" in norm(asr) and "왔다" in norm(asr)):
         raise RuntimeError("Father closing line missing")
+partkeys=[key for key in meta if key.startswith("narrator_part")]
+partkeys.sort(key=lambda k:int(k.split("part")[-1]))
+all_narrator=[seg for k in partkeys for seg in meta[k]["segments"]]
+if len(all_narrator)!=len([t for t in TURNS if t[0]=="narrator"]):raise RuntimeError("Missing Kore narrative clip")
+meta["narrator"]={"voice":"Kore","segments":all_narrator,"source_take_count":len(partkeys)}
 # Build source timeline, source clips not speed adjusted; client video synthesis applies atempo=1.25
 used={r:0 for r in VOICES}
 ordered=[]
@@ -141,7 +159,7 @@ for pos,(role,text,scene) in enumerate(TURNS):
                    "last_word_buffer_sec":item["last_word_buffer_seconds"]})
 output={"video":"Friends Funeral Trip to Jeju","original_fiction":True,"story_version":1,
   "audio_raw_seconds":round(sum(x["duration"] for x in ordered),3),"target_tempo":1.25,
-  "audio_takes":{"narrator":1,"father":1,"son":1,"friend":1,"cta":1},
+  "audio_takes":{"narrator":6,"father":1,"son":1,"friend":1,"cta":1},
   "turns":ordered,"roles":meta,"qa":qa,"important_note":"Do not force-truncate; preserve every word and add trailing 0.18s if needed."}
 (OUT/"manifest.json").write_text(json.dumps(output,ensure_ascii=False,indent=2),encoding="utf-8")
 print("PREPARED_AND_QA_COMPLETE",len(ordered),"original_voice_seconds",output["audio_raw_seconds"],flush=True)
