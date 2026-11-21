@@ -67,28 +67,23 @@ def generate(role,voice,lines,key=None):
 for role,voice in VOICES.items():
     lines=[t[1] for t in TURNS if t[0]==role]
     if role=="narrator":
-        for partnum in range(4):
-            small=lines[partnum*2:partnum*2+2]
+        groups=[lines[0:2],lines[2:4],lines[4:6],lines[6:8],lines[8:9],lines[9:10],lines[10:11]]
+        for partnum,small in enumerate(groups):
             partname="narrator_part"+str(partnum)
-            prev=__import__("pathlib").Path("oldparts")/(partname+"_master.wav")
-            if not prev.exists():raise RuntimeError("Missing clean narrator part "+str(prev))
+            prev=__import__("pathlib").Path("fullparts")/(partname+"_master.wav")
+            if not prev.exists():raise RuntimeError("Missing finished Kore part "+str(prev))
             audio=OUT/(partname+"_master.wav")
             shutil.copy2(prev,audio)
             with wave.open(str(audio),"rb") as w:secs=w.getnframes()/w.getframerate()
-            print("REUSING_VALID_KORE_PART",partname,round(secs,2),flush=True)
-            meta[partname]={"voice":voice,"source":audio.name,"seconds":secs,"lines":small}
-        for k in range(8,len(lines)):
-            small=[lines[k]]
-            partname="narrator_part"+str(k-4)
-            audio,secs=generate(role,voice,small,key=partname)
+            print("REUSING_FINISHED_KORE_TAKE",partname,secs,flush=True)
             meta[partname]={"voice":voice,"source":audio.name,"seconds":secs,"lines":small}
     else:
-        prev=__import__("pathlib").Path("oldvoices")/(role+"_master.wav")
-        if not prev.exists():raise RuntimeError("Missing old voice "+str(prev))
+        prev=__import__("pathlib").Path("fullparts")/(role+"_master.wav")
+        if not prev.exists():raise RuntimeError("Missing existing male actor "+str(prev))
         audio=OUT/(role+"_master.wav")
         shutil.copy2(prev,audio)
         with wave.open(str(audio),"rb") as w:secs=w.getnframes()/w.getframerate()
-        print("REUSING_VALID_GEMINI_TAKE",role,secs,flush=True)
+        print("REUSE_FINISHED_ACTOR",role,secs,flush=True)
         meta[role]={"voice":voice,"source":audio.name,"seconds":secs,"lines":lines}
 print("LOADING_WHISPER_FOR_PRECISE_CUTS",flush=True)
 model=WhisperModel("small",device="cpu",compute_type="int8",cpu_threads=4,num_workers=2)
@@ -129,8 +124,10 @@ for role,m in meta.items():
         # Leave 0.10 seconds before first recognized syllable and 0.20 after final syllable.
         # Use midpoint of actual intervening silent gap to avoid cutting the next utterance.
         start=max(prevend+0.02 if li else 0.0,first-0.13)
-        end=min(nextstart-0.07 if li+1<len(lines) else seconds,last+0.28)
-        if end-last<0.08:raise RuntimeError(f"Potential last syllable clipped on {role} {li}")
+        end=min(nextstart-0.03 if li+1<len(lines) else seconds,last+0.24)
+        # Last recognized syllables must remain whole even where Gemini runs dialogue together.
+        end=min(seconds,max(end,last+0.13))
+        if end-last<0.04:raise RuntimeError(f"Potential final syllable clipping: {role} {li}")
         if end-start<.6:raise RuntimeError(f"Invalid TTS segment {role}:{li}")
         file=OUT/f"{role}_{li:02d}.wav"
         sh("ffmpeg","-y","-v","error","-ss",f"{start:.4f}","-i",wav,
