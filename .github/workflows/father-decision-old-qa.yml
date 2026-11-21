@@ -1,0 +1,28 @@
+name: Check full father decision recording
+on:
+  push:
+    paths:
+      - '.github/workflows/father-decision-old-qa.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check 'faster-whisper>=1.1,<2'
+      - run: python -u father_decision_old_asr.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: father-decision-qa
+          path: father_old32_audio_QA/qa.json
+          retention-days: 7
