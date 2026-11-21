@@ -1,0 +1,39 @@
+name: Super Owner - Korean voice ASR alignment and QA
+on:
+  push:
+    paths:
+      - '.github/workflows/super-owner-asr-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SOURCE_VOICE_RUN_ID: "44906315599"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Korean speech recognizer
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check "faster-whisper>=1.1,<2"
+      - name: Align and validate narration final words
+        run: python -u super_owner_asr_verify.py
+      - name: Archive word timestamps + transcript for exact subtitle timing
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-owner-kore-asr-alignment
+          path: |
+            super_owner_asr_output/asr_transcript.txt
+            super_owner_asr_output/words.json
+            super_owner_asr_output/audio_qa.json
+          retention-days: 7
+          if-no-files-found: warn
