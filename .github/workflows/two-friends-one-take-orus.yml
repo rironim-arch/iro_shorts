@@ -1,0 +1,39 @@
+name: Two Friends Gemini Orus - Single Continuous Take
+on:
+  push:
+    paths:
+      - '.github/workflows/two-friends-one-take-orus.yml'
+      - 'two_friends_one_take_orus_20261121.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 26
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install TTS and audio dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check "google-genai>=1,<3"
+      - name: Record the complete story in ONE Gemini Orus take
+        run: python -u two_friends_one_take_orus_20261121.py
+      - name: Save for voice and subtitle alignment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: two-friends-one-take-orus-wav
+          path: |
+            two_friends_one_take_orus_output/two_friends_orus_one_take.wav
+            two_friends_one_take_orus_output/two_friends_orus_one_take.mp3
+            two_friends_one_take_orus_output/approved_script.json
+            two_friends_one_take_orus_output/voice_qa.json
+          retention-days: 7
+          if-no-files-found: warn
