@@ -1,0 +1,47 @@
+name: Repair legacy TikTok clips to constant 30fps
+on:
+  push:
+    paths:
+      - '.github/workflows/repair-tiktok-30fps.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install video tooling
+        run: python -m pip install -q --disable-pip-version-check yt-dlp imageio-ffmpeg
+      - name: Download public Shorts and reencode CFR 30
+        run: |
+          python - <<'PY'
+          import os,glob,subprocess,imageio_ffmpeg
+          os.makedirs("sources",exist_ok=True)
+          os.makedirs("outputs",exist_ok=True)
+          ff=imageio_ffmpeg.get_ffmpeg_exe()
+          videos={"oldfriend":"j7S4_fSwp3U","wardog":"vXc6hfdTKZQ"}
+          for name,vid in videos.items():
+            url="https://www.youtube.com/shorts/"+vid
+            cmd=["yt-dlp","--no-playlist","--ignore-errors","-f","b[ext=mp4]/b",
+                 "-o",f"sources/{name}.%(ext)s",url]
+            print("FETCH",name,flush=True)
+            subprocess.run(cmd,check=True)
+            paths=glob.glob(f"sources/{name}.*")
+            if not paths:raise RuntimeError("Missing video for "+name)
+            outfile=f"outputs/{name}_30fps.mp4"
+            cmd=[ff,"-hide_banner","-loglevel","error","-y",
+                 "-i",paths[0],"-vf","fps=30,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
+                 "-r","30","-vsync","cfr","-c:v","libx264","-preset","veryfast",
+                 "-crf","22","-pix_fmt","yuv420p","-video_track_timescale","30000",
+                 "-c:a","aac","-b:a","160k","-ar","48000","-movflags","+faststart",outfile]
+            print("REENCODE",name,flush=True)
+            subprocess.run(cmd,check=True)
+            print("FINISHED",name,os.stat(outfile).st_size,flush=True)
+          PY
+      - name: Upload public release files for import
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "shorts-cfr30-transfer-20261121" outputs/*.mp4 --repo "${{ github.repository }}" --target main --title "Temporary 30fps social transfer" --notes "Temporary public copies of already-public YouTube Shorts for TikTok compatibility."
+          gh release view "shorts-cfr30-transfer-20261121" --repo "${{ github.repository }}" --json assets --jq '.assets[]|.name+" "+.url'
