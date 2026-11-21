@@ -1,0 +1,28 @@
+name: Verify father remarriage CTA ASR
+on:
+  push:
+    paths:
+      - '.github/workflows/father-remarriage-cta-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check 'faster-whisper>=1.1,<2'
+      - run: python -u verify_father_remarriage_cta.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: father-remarriage-cta-asr
+          path: father_remarriage_cta_verify/verification.json
+          retention-days: 7
