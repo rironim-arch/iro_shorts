@@ -1,0 +1,20 @@
+name: Clean up temporary social transfer video hosts
+on:
+  push:
+    paths:
+      - '.github/workflows/cleanup-social-transfer.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Remove temporary releases after successful vidIQ import
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete "shorts-cfr30-transfer-20261121" -y --cleanup-tag --repo "${{ github.repository }}"
+          gh release delete "scheduled-shorts-cfr30-transfer-20261121" -y --cleanup-tag --repo "${{ github.repository }}"
+          echo "Temporary public media hosts removed after import"
