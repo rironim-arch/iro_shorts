@@ -1,0 +1,28 @@
+name: Check all used narrator and son line endings
+on:
+  push:
+    paths:
+      - '.github/workflows/remarriage-other-qa.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check 'faster-whisper>=1.1,<2'
+      - run: python -u remarriage_other_lines_asr.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: remarriage-other-lines-qa
+          path: father_other_lines_qa/all_other_qa.json
+          retention-days: 7
