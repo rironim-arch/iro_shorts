@@ -1,30 +1,35 @@
 name: Two Friends Exact Layout - Apply Approved Reference
 on:
-  workflow_run:
-    workflows:
-      - "Two Friends Webtoon Gemini Orus - Review MP4"
-    types: [completed]
+  workflow_dispatch:
+    inputs:
+      voice_run_id:
+        description: "Existing completed Gemini Orus workflow run ID"
+        required: true
+        type: string
+      reference_framepack_url:
+        description: "Approved screenshot-accurate framepack HTTPS URL"
+        required: true
+        type: string
 permissions:
   contents: read
   actions: read
 jobs:
   apply-layout:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VOICE_RUN_ID: ${{ github.event.workflow_run.id }}
-      REFERENCE_FRAMEPACK_URL: "https://storage.googleapis.com/vidiq-user-videos/e12c8422-2c00-4502-b8d1-ce48b534a1a2/85835600-f836-447f-8d4e-a9373b5ba81f.mp4?GoogleAccessId=ai-proxy-20261001%40studious-pen-429.vid.io.iam.gserviceaccount.com&Expires=1795847411&Signature=oPHfU7AN6DONqS6r0owe%2FDjPTAOeHTA0ByxWn82a1%2Bf8T3S7SAZyfPj9SfHgz8Gl0GqlC9Wr5crJ2DkVFcRXjg0fTXkIK2gAKlrMGfbCdOnvHCPC6MO%2Bfg1i%2F%2FlSwoBNYlj8A6ehDZy9BSFMPW6B8j5q1vxfz491KuSqK5iddKml0Gp4uXJMaCznkfQdE9K6F9fbLTrTzEhEITrdis958jCy2gkhpbfPkDoRcO0786GHGATkG3cDvKIFcy5IbOB%2FQd8DcOR87hau4m24EB%2FXYa9g4pXd%2FDOq2QlH7ea8fudCZF%2FZPxB8uycVvr5Ysv8g2FteA8tkRFuUFGUgX%2FiUrg%3D%3D"
+      VOICE_RUN_ID: ${{ inputs.voice_run_id }}
+      REFERENCE_FRAMEPACK_URL: ${{ inputs.reference_framepack_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install ffmpeg
+      - name: Install FFmpeg
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
-      - name: Rebuild the final MP4 using the user screenshot layout and Orus audio
+      - name: Rebuild from approved framepack and existing Orus audio
         run: python -u two_friends_layout_final_20261121.py
-      - name: Deliver 30fps private review files (do not publish)
+      - name: Private review only - no posting
         uses: actions/upload-artifact@v4
         if: always()
         with:
