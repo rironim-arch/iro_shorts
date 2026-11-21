@@ -1,0 +1,40 @@
+name: Prepare 4 missing TikTok clips as constant 30fps
+on:
+  push:
+    paths:
+      - '.github/workflows/prepare-tiktok-missing-30fps.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  reencode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install ffmpeg
+        run: python -m pip install -q --disable-pip-version-check imageio-ffmpeg
+      - name: Reencode four public Shorts
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,urllib.request,imageio_ffmpeg
+          urls=json.loads(r'''{"funeral":"https://storage.googleapis.com/vidiq-user-videos/e12c8422-2c00-4502-b8d1-ce48b534a1a2/f230b3bc-9dbb-4e0e-bf17-d3210da01ace.mp4?GoogleAccessId=ai-proxy-20261001%40studious-pen-429.vid.io.iam.gserviceaccount.com&Expires=1795844299&Signature=SSH%2FEWi2fpOGYe6jJGpRa2t3HWgvzQAjig96n6oybFxce9pQ5CaFtNzUL65BZWt6OM5qpaqQ3ZhPT6b1b4oFYseWvfqt8yl89b8XjnS2StiQiLuqiO8bGVVfapdrxSuC%2BwD55QKQ2YEMqH%2BROkSW7%2FeTADUecUtOLpsR06oNJkq4FcGyZMAWZcVgSPluZLBMPFElcP7%2FWCMQHKgIX25n0ACeiGVs0JavSGVb5HJrzmtJchdRkD0gCf2%2B%2FoEzGR1VhnUI4XCaPayOrlkMUmGLUJoDuVMVsACA1dNs2STxgQ3B%2BN4Qwmdv4IJSZH5La1diDWg4JN2Cb4iqOLFfOoTFoQ%3D%3D","indian":"https://storage.googleapis.com/vidiq-user-videos/e12c8422-2c00-4502-b8d1-ce48b534a1a2/c957243c-bd36-4f4e-b805-018852f20b86.mp4?GoogleAccessId=ai-proxy-20261001%40studious-pen-429.vid.io.iam.gserviceaccount.com&Expires=1795844301&Signature=hxViPvqU6AYEylvNhecIo7zPr7aoriafFNaSg7TIsfDytyyybM8M2VJxwGcePPr9QwymKXrJJ%2FohjRnsTPcOKVQtrd2CoAHEsGFRtmfKVte88UdKP69JE08vP1Cjp4o6Mhb9dvtcasDb8pcmNT986F%2B52Tzbp5IgF17qWFI0bF65LTQf%2FLcJlx8iPnqSJW6QiW9QiFP%2Fx8br7Q%2BUKyifXpXxu%2B%2FZyzkqs4O0iwWG5hJnAsFt4MdrUewWNp%2BqBFI5li%2BdOKNUNTA9erAewjRlm6%2Fdpny3DOBrvtdNFIInWk0qIF5eCgHGZ9of4eZ0zH9CqlzslddJ1R54POxRYPJnPA%3D%3D","motherangry":"https://storage.googleapis.com/vidiq-user-videos/e12c8422-2c00-4502-b8d1-ce48b534a1a2/c49eb678-c174-4299-917b-816a90e2235b.mp4?GoogleAccessId=ai-proxy-20261001%40studious-pen-429.vid.io.iam.gserviceaccount.com&Expires=1795844302&Signature=n%2BrkT6OdQp2sg5VkTHHJ9NGbHMU6SbV4HsP2OQ%2FYiEuIPuu3ajgNarhQkErdQe1bMueBtWIxWW4oIkbkjnIAjrrLdmnQ4PEZyMWnEVhmKSP2aj%2FI4XZy45amz2ErTD1FPPok5VxXVM01eAz4QN%2BrvWMKn1epFJwikV4WSmhKn%2BFxaY14Lvy0ck49JaqzcBErV79Gw2pmsvv684cFuzyfbmrPd7k3eTVLcI6Wvai0LW4lIbECX8YRetbtckwuOL8U5a1rhXpgb3PBEeWIYQeUz9dW%2FItwXQRIqTWJ6x2eisdSHTS3RZPsAtznIE3NHiu5%2FpHU%2BY0AysDjyHYl%2FQgDqA%3D%3D","oldman":"https://storage.googleapis.com/vidiq-user-videos/e12c8422-2c00-4502-b8d1-ce48b534a1a2/43f83ce7-dfb6-4fb2-b11c-6dc1ceb67537.mp4?GoogleAccessId=ai-proxy-20261001%40studious-pen-429.vid.io.iam.gserviceaccount.com&Expires=1795844303&Signature=rKY%2FQbIYupI8U30CsXV9dr4SgUI03VWQt59oFIc9G4dpsw2OZPxKdDqXYbaWns6ilWzqIGcXLmL6yKUerRVctGIr%2B4UsG7%2FEF2jRPkYtPC72gyMMFqFvL8GZc8WNLicfPBXlMUwIhj5XYT66uL7%2BUlFS5QrbdqF6qacbW5blrWQ%2FAFAAS8JU5O%2BbEGW%2FnbxhnLgbwsdW0%2Beyy2tpUeOOEjXYdY2Zo1klBU%2Br2nX8sdzs61ymkFJjJkvxOU5CuvpG%2BtFtGdq0Lsnog95%2Br4Qx1R3FDUy4FPRKq0GqYWo3p9q8oZE%2FI6kMFekIcpWWkzzPuN3ySA0bYEXOFvXCXNYgVg%3D%3D"}''')
+          ff=imageio_ffmpeg.get_ffmpeg_exe()
+          os.makedirs("outputs",exist_ok=True)
+          for name,url in urls.items():
+            src=f"{name}_src.mp4"
+            print("START",name,flush=True)
+            urllib.request.urlretrieve(url,src)
+            dst=f"outputs/{name}_30fps.mp4"
+            subprocess.run([ff,"-hide_banner","-loglevel","error","-y",
+              "-i",src,"-vf","fps=30,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
+              "-r","30","-fps_mode","cfr","-c:v","libx264","-preset","ultrafast","-crf","23",
+              "-pix_fmt","yuv420p","-video_track_timescale","30000","-c:a","aac","-b:a","128k",
+              "-ar","48000","-movflags","+faststart",dst],check=True)
+            print("FINISHED",name,os.stat(dst).st_size,flush=True)
+          PY
+      - name: Publish temporary import URLs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "missing-shorts-cfr30-transfer-20261121" outputs/*.mp4 --repo "${{ github.repository }}" --target main --title "Temporary missing TikTok media" --notes "Temporary reencoded copies of already-public Shorts."
+          gh release view "missing-shorts-cfr30-transfer-20261121" --repo "${{ github.repository }}" --json assets --jq '.assets[]|.name+" "+.url'
