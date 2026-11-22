@@ -1,0 +1,34 @@
+name: Voice audition Korean Minho Gemini 3.8 TTS
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/minho-voice-audition-3-8.yml'
+permissions:
+  contents: read
+jobs:
+  audition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install audio conversion and Gemini 3.8 API SDK
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check 'google-genai>=2.33.0,<3'
+      - name: Render eight Korean character/narration audition clips
+        run: python -u minho_voice_audition_38.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gemini-38-minho-8-voice-auditions
+          path: |
+            minho_voice_auditions/*.mp3
+            minho_voice_auditions/manifest.json
+          if-no-files-found: warn
+          retention-days: 7
