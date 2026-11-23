@@ -1,0 +1,29 @@
+name: Father daughter's embrace line pronun retake
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/father-daughter-retake31-20261124.yml'
+permissions:
+  contents: read
+jobs:
+  retake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python -m pip install -q 'google-genai>=1,<3' 'faster-whisper>=1.1,<2'
+      - run: python -u father_daughter_retake31_20261124.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: father-daughter-verified-embrace-31
+          path: |
+            father_daughter_retakes/retake31.wav
+            father_daughter_retakes/retake31.json
