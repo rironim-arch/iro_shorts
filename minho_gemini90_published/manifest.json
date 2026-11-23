@@ -1,0 +1,281 @@
+{
+  "model": "gemini-3.8-flash-tts",
+  "voices": {
+    "n": "Kore",
+    "m": "Algenib",
+    "f": "Orus"
+  },
+  "total_seconds": 130.3,
+  "turns": [
+    {
+      "index": 1,
+      "role": "n",
+      "text": "친구들과 있을 땐 즐거운데, 집에 돌아오면 왜 더 외로울까요?",
+      "voice": "Kore",
+      "file": "line_01.wav",
+      "seconds": 7.3,
+      "asr": "친구들과 있을 때는 즐거운데 집에 돌아오면 왜 더 외로울까요?",
+      "similarity": 0.939
+    },
+    {
+      "index": 2,
+      "role": "f",
+      "text": "야 민호야! 내일도 모이는데 올 거지?",
+      "voice": "Orus",
+      "file": "line_02.wav",
+      "seconds": 3.46,
+      "asr": "야 민호야, 내일도 모이던데 올거지?",
+      "similarity": 0.929
+    },
+    {
+      "index": 3,
+      "role": "m",
+      "text": "당연하지! 나 빼고 놀지 마!",
+      "voice": "Algenib",
+      "file": "line_03.wav",
+      "seconds": 3.1,
+      "asr": "당연하지. 나 빼고 놀지 마.",
+      "similarity": 1.0
+    },
+    {
+      "index": 4,
+      "role": "n",
+      "text": "금요일엔 술자리, 주말엔 또 모임. 서른여섯 민호의 일상이었습니다.",
+      "voice": "Kore",
+      "file": "line_04.wav",
+      "seconds": 7.3,
+      "asr": "금요일엔 술자리, 주말엔 또 모임, 30여서 민호의 일상이었습니다.",
+      "similarity": 0.889
+    },
+    {
+      "index": 5,
+      "role": "n",
+      "text": "하지만 집에 돌아오면 웃음은 금세 사라졌죠.",
+      "voice": "Kore",
+      "file": "line_05.wav",
+      "seconds": 4.7,
+      "asr": "하지만 집에 돌아오면 웃음은 금세 사라졌죠.",
+      "similarity": 1.0
+    },
+    {
+      "index": 6,
+      "role": "m",
+      "text": "분명 재밌었는데… 왜 이렇게 허전하지?",
+      "voice": "Algenib",
+      "file": "line_06.wav",
+      "seconds": 4.14,
+      "asr": "분명 재미있었는데 왜 이렇게 허전하지?",
+      "similarity": 0.903
+    },
+    {
+      "index": 7,
+      "role": "n",
+      "text": "외로울 때마다 다음 약속을 잡았습니다. 혼자 시간을 채우는 습관이 없었거든요.",
+      "voice": "Kore",
+      "file": "line_07.wav",
+      "seconds": 8.22,
+      "asr": "외로울 때마다 다음 약속을 잡았습니다. 혼자 시간을 채우는 습관이 없었거든요.",
+      "similarity": 1.0
+    },
+    {
+      "index": 8,
+      "role": "n",
+      "text": "그렇게 비슷한 주말이 3년이나 흘렀습니다.",
+      "voice": "Kore",
+      "file": "line_08.wav",
+      "seconds": 4.9,
+      "asr": "그렇게 비슷한 주말이 3년이나 흘렀습니다.",
+      "similarity": 1.0
+    },
+    {
+      "index": 9,
+      "role": "f",
+      "text": "야, 나 자격증 땄어! 다음 달부터 새 회사 가!",
+      "voice": "Orus",
+      "file": "line_09.wav",
+      "seconds": 5.26,
+      "asr": "야 나 자격증 다 써 다음 달부터 새 회사가",
+      "similarity": 0.875
+    },
+    {
+      "index": 10,
+      "role": "m",
+      "text": "와, 축하한다! 진짜 열심히 하더니.",
+      "voice": "Algenib",
+      "file": "line_10.wav",
+      "seconds": 4.5,
+      "asr": "와 축한다 진짜 열심히 하더니",
+      "similarity": 0.96
+    },
+    {
+      "index": 11,
+      "role": "f",
+      "text": "근데 너는? 전에 뭐 배운다며?",
+      "voice": "Orus",
+      "file": "line_11.wav",
+      "seconds": 3.06,
+      "asr": "근데 너는? 저는 뭐 배운 다음에",
+      "similarity": 0.696
+    },
+    {
+      "index": 12,
+      "role": "m",
+      "text": "아… 나도 이제 시작하려고.",
+      "voice": "Algenib",
+      "file": "line_12.wav",
+      "seconds": 3.5,
+      "asr": "아... 나도 이제 시작하려고",
+      "similarity": 1.0
+    },
+    {
+      "index": 13,
+      "role": "f",
+      "text": "너 그 말, 3년 전에도 했잖아!",
+      "voice": "Orus",
+      "file": "line_13.wav",
+      "seconds": 2.86,
+      "asr": "또 그 말 3년 전에도 했잖아",
+      "similarity": 0.909
+    },
+    {
+      "index": 14,
+      "role": "n",
+      "text": "웃었지만 집에 가는 내내 그 말이 떠올랐습니다.",
+      "voice": "Kore",
+      "file": "line_14.wav",
+      "seconds": 5.02,
+      "asr": "웃었지만 집에 가는 내내 그 말이 떠올랐습니다.",
+      "similarity": 1.0
+    },
+    {
+      "index": 15,
+      "role": "m",
+      "text": "그러게… 난 지난 3년 동안 뭘 했지?",
+      "voice": "Algenib",
+      "file": "line_15.wav",
+      "seconds": 4.02,
+      "asr": "그러게, 난 지난 3년 동안 뭐랬지?",
+      "similarity": 0.846
+    },
+    {
+      "index": 16,
+      "role": "n",
+      "text": "사진첩엔 술자리 사진뿐. 공부와 운동은 늘 미뤘죠.",
+      "voice": "Kore",
+      "file": "line_16.wav",
+      "seconds": 6.94,
+      "asr": "사진첩에는 숫자리 사진 뿐, 공부와 운동은 늘 밀었죠.",
+      "similarity": 0.78
+    },
+    {
+      "index": 17,
+      "role": "f",
+      "text": "야, 오늘도 한잔하자!",
+      "voice": "Orus",
+      "file": "line_17.wav",
+      "seconds": 2.14,
+      "asr": "야! 오늘도 한잔하자!",
+      "similarity": 1.0
+    },
+    {
+      "index": 18,
+      "role": "m",
+      "text": "미안, 오늘은 못 가. 나도 뭐 하나 시작하려고.",
+      "voice": "Algenib",
+      "file": "line_18.wav",
+      "seconds": 5.02,
+      "asr": "미안... 오늘은 못 가... 나도 뭐 하나 시작하려고",
+      "similarity": 1.0
+    },
+    {
+      "index": 19,
+      "role": "n",
+      "text": "그날 민호는 미뤄둔 강의를 틀었습니다.",
+      "voice": "Kore",
+      "file": "line_19.wav",
+      "seconds": 4.14,
+      "asr": "그날 민호는 미뤄준 강의를 틀었습니다.",
+      "similarity": 0.938
+    },
+    {
+      "index": 20,
+      "role": "m",
+      "text": "아, 어렵네. 그냥 나갈 걸 그랬나?",
+      "voice": "Algenib",
+      "file": "line_20.wav",
+      "seconds": 4.46,
+      "asr": "아... 어렵네 그냥 나갈 거야 그랬나",
+      "similarity": 0.88
+    },
+    {
+      "index": 21,
+      "role": "n",
+      "text": "그래도 휴대전화를 내려놓고 다시 책을 폈습니다.",
+      "voice": "Kore",
+      "file": "line_21.wav",
+      "seconds": 4.7,
+      "asr": "그래도 휴대전화를 내려놓고 다시 책을 펴습니다.",
+      "similarity": 0.95
+    },
+    {
+      "index": 22,
+      "role": "n",
+      "text": "퇴근 후엔 공부하고, 주말엔 가볍게 뛰었습니다.",
+      "voice": "Kore",
+      "file": "line_22.wav",
+      "seconds": 4.78,
+      "asr": "퇴근 후엔 공부하고 주말엔 가볍게 띄었습니다.",
+      "similarity": 0.947
+    },
+    {
+      "index": 23,
+      "role": "n",
+      "text": "한 달 뒤, 드디어 강의 하나를 끝냈습니다.",
+      "voice": "Kore",
+      "file": "line_23.wav",
+      "seconds": 4.26,
+      "asr": "한 달 뒤 드디어 강의 하나를 끝났습니다.",
+      "similarity": 0.938
+    },
+    {
+      "index": 24,
+      "role": "f",
+      "text": "야, 요즘 왜 안 보여? 술 끊었냐?",
+      "voice": "Orus",
+      "file": "line_24.wav",
+      "seconds": 2.9,
+      "asr": "야, 요즘 왜 안보여? 수꾼었냐?",
+      "similarity": 0.818
+    },
+    {
+      "index": 25,
+      "role": "m",
+      "text": "아니, 너희도 만나야지. 근데 나한테도 시간을 좀 쓰려고.",
+      "voice": "Algenib",
+      "file": "line_25.wav",
+      "seconds": 5.98,
+      "asr": "아니 너희도 만나야지 근데 나한테도 시간을 좀 쓰려고",
+      "similarity": 1.0
+    },
+    {
+      "index": 26,
+      "role": "n",
+      "text": "외로움은 여전했습니다. 다만 혼자 있는 시간을 채울 습관이 생겼습니다.",
+      "voice": "Kore",
+      "file": "line_26.wav",
+      "seconds": 7.58,
+      "asr": "외로운 문 여전했습니다. 다만 혼자 있는 시간을 채울 습관이 생겼습니다.",
+      "similarity": 0.931
+    },
+    {
+      "index": 27,
+      "role": "n",
+      "text": "이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.",
+      "voice": "Kore",
+      "file": "line_27.wav",
+      "seconds": 6.06,
+      "asr": "이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.",
+      "similarity": 1.0
+    }
+  ]
+}
