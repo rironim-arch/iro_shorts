@@ -1,0 +1,72 @@
+name: Align cafe mom Gemini TTS with actual word timing
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/cafe-mom-align-real-words-20261123.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  align:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download original verified real Gemini TTS WAV recordings
+        uses: actions/download-artifact@v4
+        with:
+          name: cafe-mom-gemini-tts-20261123
+          repository: rironim-arch/iro_shorts
+          run-id: 45128433631
+          github-token: ${{ github.token }}
+          path: original
+      - name: Download added one-year effort Gemini Kore WAV
+        uses: actions/download-artifact@v4
+        with:
+          name: cafe-mom-effort-Gemini-Kore
+          repository: rironim-arch/iro_shorts
+          run-id: 45131325640
+          github-token: ${{ github.token }}
+          path: effort
+      - name: Install ffmpeg and ASR with word timestamps
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python -m pip install -q 'faster-whisper>=1.1,<2'
+      - name: Analyze original 1.25x audio, not original text timing
+        run: |
+          cat > /tmp/align.py <<'PY'
+          import json,subprocess,wave,sys
+          from pathlib import Path
+          from faster_whisper import WhisperModel
+          clips=[1,2,3,'effort',7,8,9,10,11,12,14,15,16,17,18,19,21,23,24,27,28,29,30]
+          Path('aligned').mkdir(exist_ok=True)
+          model=WhisperModel('small',device='cpu',compute_type='int8',cpu_threads=4)
+          data=[]
+          for i,idx in enumerate(clips,1):
+            filename='effort/effort.wav' if idx=='effort' else 'original/line_%02d.wav'%idx
+            output='aligned/clip_%02d.wav'%i
+            p=subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',filename,'-af','atempo=1.25','-ar','24000','-ac','1',output],capture_output=True,text=True)
+            if p.returncode:raise RuntimeError(p.stderr)
+            with wave.open(output,'rb') as w:duration=w.getnframes()/w.getframerate()
+            segs,info=model.transcribe(output,language='ko',word_timestamps=True,beam_size=4,condition_on_previous_text=False,vad_filter=False)
+            words=[]
+            for seg in segs:
+              for word in seg.words or []:
+                words.append({'text':word.word,'start':round(word.start,3),'end':round(word.end,3),'probability':round(word.probability,3)})
+            record={'key':idx,'clip':i,'duration':round(duration,4),'words':words,'heard':' '.join(w['text'] for w in words)}
+            data.append(record)
+            print('ALIGN',idx,'duration',round(duration,2),'words',len(words),'transcript',record['heard'][:180],flush=True)
+          Path('aligned/words.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+          print('DONE',len(data),flush=True)
+          PY
+          python -u /tmp/align.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cafe-mom-realword-alignment
+          path: aligned/words.json
+          retention-days: 7
