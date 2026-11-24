@@ -1,0 +1,26 @@
+name: Kkami OpenAI TTS connection probe
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/kkami-openai-probe.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_TTS_API_KEY: ${{ secrets.OPENAI_TTS_API_KEY }}
+    steps:
+      - name: Check OpenAI TTS credential availability without exposing keys
+        shell: bash
+        run: |
+          if [ -n "$OPENAI_API_KEY" ] || [ -n "$OPENAI_TTS_API_KEY" ]; then
+            echo "OPENAI_TTS_CREDENTIAL_PRESENT=yes"
+          else
+            echo "OPENAI_TTS_CREDENTIAL_PRESENT=no"
+            echo "::error::OpenAI API key is not connected to this GitHub Actions environment."
+            exit 2
+          fi
