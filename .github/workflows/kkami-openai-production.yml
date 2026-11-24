@@ -1,0 +1,33 @@
+name: Kkami OpenAI TTS production
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/kkami-openai-production.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_TTS_API_KEY: ${{ secrets.OPENAI_TTS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: OpenAI dependencies
+        run: pip install -q 'openai>=2,<5'
+      - name: Verify and generate Kkami narration
+        run: python -u kkami_openai_tts_20261124.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kkami-openai-shimmer-narration
+          path: |
+            kkami_openai/clip_*.wav
+            kkami_openai/full.wav
+            kkami_openai/manifest.json
+          retention-days: 7
