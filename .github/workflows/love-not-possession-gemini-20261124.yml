@@ -1,0 +1,68 @@
+name: Love not possession Gemini voices
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/love-not-possession-gemini-20261124.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"m\",\"그 나이에 그림을 배워서 뭐 하려고? 그냥 집에서 편하게 쉬어.\"],[\"w\",\"내가 좋아서 하는 건데?\"],[\"m\",\"친구들도 좀 그만 만나. 집에 있는 게 뭐가 불편해?\"],[\"n\",\"그렇게 아내는 좋아하던 것들을 하나씩 포기했습니다. 어느 날 남편이 물었습니다.\"],[\"m\",\"당신 요즘 왜 이렇게 표정이 어두워?\"],[\"w\",\"당신이 싫어하는 것들을 하나씩 없애다 보니까 내가 좋아하는 게 하나도 안 남았어.\"],[\"m\",\"나는 다 당신을 사랑해서 그러는 거야.\"],[\"w\",\"당신, 연애할 때 내 어떤 모습이 좋았어?\"],[\"m\",\"잘 웃고 밝은 모습이 좋았지.\"],[\"w\",\"그렇게 웃을 수 있었던 건 내가 좋아하는 것들을 하면서 살았기 때문이야. 당신은 내가 행복하길 바라는 거야? 아니면 당신이 안심할 수 있는 사람으로 살기를 바라는 거야?\"],[\"n\",\"남편은 아무런 대답도 하지 못했습니다. 꽃을 꺾으면 내 것이 되지만, 더 이상 자라지 못합니다. 사랑은 상대를 내 곁에 가두는 것이 아니라, 내 곁에서도 자기 자신으로 살아갈 수 있게 해주는 것입니다.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\"]]")
+          OUT=Path("love_story_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Algieba","w":"Kore"}
+          styles={"n":"Warm quiet Korean storyteller, reflective and restrained.","m":"Middle-aged Korean husband, natural conversational voice, softly controlling rather than angry, sincerely convinced that he is caring. Later hesitant and reflective.","w":"Middle-aged Korean wife, natural intimate Korean speech, gently disappointed, quietly firm, never melodramatic."}
+          def generate(item):
+           i,(role,script)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" Natural Korean, steady conversational pace. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(2):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(5)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if attempt==1:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: love-story-gemini-voices
+          path: love_story_audio/
+          retention-days: 7
