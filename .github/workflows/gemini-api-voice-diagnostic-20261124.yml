@@ -1,0 +1,57 @@
+name: Gemini API bounded voice diagnostic
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/gemini-api-voice-diagnostic-20261124.yml'
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Direct REST request with explicit time limit
+        timeout-minutes: 2
+        run: |
+          mkdir -p diagnostic
+          python -u - <<'PY'
+          import os,json,urllib.request,urllib.error,base64,socket,time,pathlib
+          out=pathlib.Path('diagnostic')
+          key=os.environ.get('GEMINI_API_KEY','')
+          if not key:
+              print('ERROR: API key missing',flush=True)
+              raise SystemExit(1)
+          payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":"어느 골목에 아주 이상한 가게가 있었습니다.","annotations":[{"type":"speech_metadata","style":"Calm natural Korean storyteller."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":"Charon"}]}}
+          req=urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/interactions',data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','x-goog-api-key':key})
+          print('Sending direct Gemini request; socket timeout 45 seconds',flush=True)
+          t=time.monotonic()
+          def report(obj):
+              (out/'status.json').write_text(json.dumps(obj,ensure_ascii=False),encoding='utf8')
+              print(json.dumps(obj,ensure_ascii=False),flush=True)
+          try:
+              with urllib.request.urlopen(req,timeout=45) as r:
+                  print('HTTP',r.status,flush=True)
+                  response=json.load(r)
+              audio=[c for s in response.get('steps',[]) for c in s.get('content',[]) if c.get('type')=='audio' and c.get('data')]
+              if not audio:
+                  report({'result':'no_audio','status':response.get('status'),'elapsed':round(time.monotonic()-t,2)})
+                  raise SystemExit(1)
+              (out/'sample.wav').write_bytes(base64.b64decode(audio[-1]['data']))
+              report({'result':'success','bytes':(out/'sample.wav').stat().st_size,'elapsed':round(time.monotonic()-t,2)})
+          except urllib.error.HTTPError as e:
+              msg=e.read().decode(errors='replace').replace(key,'[redacted]')
+              report({'result':'http_error','http_status':e.code,'detail':msg[:1800]})
+              raise SystemExit(1)
+          except (OSError,TimeoutError) as e:
+              report({'result':'connection_error','detail':str(e).replace(key,'[redacted]'),'elapsed':round(time.monotonic()-t,2)})
+              raise SystemExit(1)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gemini-voice-diagnostic
+          path: diagnostic/
+          retention-days: 7
