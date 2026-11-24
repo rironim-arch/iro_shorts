@@ -1,4 +1,4 @@
-name: Worry shop Gemini voice first
+name: Worry shop Gemini direct REST production
 on:
   workflow_dispatch:
   push:
@@ -6,80 +6,62 @@ on:
       - '.github/workflows/worry-shop-gemini-v2-20261124.yml'
 permissions:
   contents: read
-  actions: write
 jobs:
   voice:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 8
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Stop superseded audio job before generating
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Generate 15 voice groups using verified direct REST
         run: |
-          state=$(gh api repos/${{ github.repository }}/actions/runs/45331124292 --jq .status)
-          echo "Old run status: $state"
-          if [ "$state" != completed ]; then
-            gh api -X POST repos/${{ github.repository }}/actions/runs/45331124292/cancel || exit 1
-            for i in $(seq 1 18); do
-              state=$(gh api repos/${{ github.repository }}/actions/runs/45331124292 --jq .status)
-              [ "$state" = completed ] && break
-              sleep 5
-            done
-            [ "$state" = completed ] || exit 1
-          fi
-      - name: Install Gemini SDK only
-        timeout-minutes: 3
-        run: python -m pip install --disable-pip-version-check --timeout 15 --retries 1 'google-genai>=1,<3'
-      - name: Generate Gemini voice only
-        run: |
-          cat > /tmp/worry_shop.py <<'PY'
+          python -u - <<'PY'
           from pathlib import Path
-          import os,time,base64,wave,re,json,difflib,subprocess
-          from google import genai
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
           GROUPS=json.loads("[[\"n\",\"어느 골목에 아주 이상한 가게가 있었습니다. 돈을 내면 자신의 걱정을 맡길 수 있는 가게였습니다. 한 중년 남자가 커다란 가방을 들고 찾아왔습니다.\"],[\"m\",\"여기 있는 걱정들을 전부 맡아주시오.\"],[\"o\",\"그러시죠. 한 달에 만 원입니다.\"],[\"n\",\"남자는 홀가분한 마음으로 가게를 나섰습니다. 그런데 한 시간도 지나지 않아 다시 돌아왔습니다.\"],[\"m\",\"혹시 내 걱정들이 없어지거나 하진 않겠죠?\"],[\"o\",\"없어지면 좋은 것 아닙니까?\"],[\"m\",\"아니, 그래도 중요한 걱정들이라서요.\"],[\"n\",\"다음 날에도 남자는 찾아왔습니다. 가게에 도둑이 들지는 않을까. 주인이 갑자기 문을 닫지는 않을까. 그렇게 남자는 매일 가게를 찾아왔습니다. 결국 한 달 뒤, 남자는 걱정을 전부 돌려달라고 했습니다.\"],[\"m\",\"당신한테 맡겨놓으니 더 신경 쓰여서 못 살겠소.\"],[\"n\",\"가게 주인은 가방을 돌려주며 말했습니다.\"],[\"o\",\"손님, 처음 오셨을 때도 이 가방은 비어 있었습니다.\"],[\"n\",\"남자는 황급히 가방을 열어보았습니다. 정말 아무것도 들어 있지 않았습니다. 남자는 빈 가방을 한참 바라보더니 물었습니다.\"],[\"m\",\"그럼 나는 지금까지 대체 뭘 짊어지고 다닌 거요?\"],[\"n\",\"가게 주인은 대답하지 않았습니다. 그저 남자의 어깨를 바라보았습니다. 아무것도 들지 않은 남자의 어깨는 여전히 무겁게 처져 있었습니다.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\"]]")
           OUT=Path("worry_shop_audio");OUT.mkdir(exist_ok=True)
-          client=genai.Client(http_options={"api_version":"v1beta"},api_key=os.environ["GEMINI_API_KEY"])
+          key=os.environ["GEMINI_API_KEY"]
           voices={"n":"Charon","m":"Orus","o":"Algenib"}
           styles={"n":"Calm, intimate Korean storyteller, understated, thoughtful.","m":"An anxious Korean man in his early fifties, realistic conversational acting.","o":"A gentle Korean male shopkeeper in his seventies, quietly wise, understated."}
-          def norm(s):return re.sub("[^가-힣]","",s)
-          manifest=[]
-          t=0
-          for i,(role,script) in enumerate(GROUPS,1):
-           for attempt in range(4):
+          def generate(item):
+           i,(role,script)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" Natural Korean, steady conversational pace. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(2):
             try:
-             r=client.interactions.create(model="gemini-3.8-flash-tts",input=[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" Natural Korean at a steady conversational pace. Read exactly the full text, no extra words. Finish every final syllable clearly."}]}]}],response_format={"type":"audio"},generation_config={"speech_config":[{"voice":voices[role]}]})
-             a=r.output_audio.data
-             data=base64.b64decode(a) if isinstance(a,str) else a
-             raw=OUT/f"raw_{i:02d}.wav"
-             if data[:4]==b"RIFF":raw.write_bytes(data)
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
              else:
-              with wave.open(str(raw),"wb") as w:
+              with wave.open(str(dest),"wb") as w:
                w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
-             dest=raw
-             with wave.open(str(dest)) as w:duration=w.getnframes()/w.getframerate()
-             if duration<0.4:raise RuntimeError("Empty speech")
-             manifest.append({"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"start":round(t,3),"end":round(t+duration,3),"duration":duration,"qc":"pending"})
-             t+=duration
-             (OUT/"manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8")
-             print("GENERATED",i,duration,flush=True)
-             break
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             return record
             except Exception as e:
-             print("RETRY",i,attempt,str(e)[:250],flush=True)
-             if attempt==3:raise
-             time.sleep(10+attempt*10)
-          print("TOTAL",t,flush=True)
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if attempt==1:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+           records=list(ex.map(generate,enumerate(GROUPS,1)))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
           
           PY
-          python -u /tmp/worry_shop.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: worry-shop-gemini-audio
+          name: worry-shop-direct-voices
           path: worry_shop_audio/
           retention-days: 7
