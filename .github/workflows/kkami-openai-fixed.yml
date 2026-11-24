@@ -1,0 +1,35 @@
+name: Kkami OpenAI TTS fixed dependencies
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/kkami-openai-fixed.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install audio tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y ffmpeg
+          python -m pip install -q 'openai>=2,<5'
+      - name: Generate and check OpenAI TTS
+        run: python -u kkami_openai_tts_20261124.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kkami-openai-tts-final
+          path: |
+            kkami_openai/clip_*.wav
+            kkami_openai/full.wav
+            kkami_openai/manifest.json
+          retention-days: 7
