@@ -1,0 +1,61 @@
+name: Kkami Kore batches speech alignment
+on:
+  workflow_run:
+    workflows:
+      - "Kkami Kore TTS resilient scene batches"
+    types:
+      - completed
+permissions:
+  contents: read
+  actions: read
+jobs:
+  align:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q 'openai>=2,<5'
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-kore-batch-0
+          path: batches/0
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-kore-batch-1
+          path: batches/1
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-kore-batch-2
+          path: batches/2
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-kore-batch-3
+          path: batches/3
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-kore-batch-4
+          path: batches/4
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: python -u kkami_kore_batches_asr.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kkami-kore-batches-wordtimes
+          path: kkami_kore_v2_word_times.json
+          retention-days: 7
