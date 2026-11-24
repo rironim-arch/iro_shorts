@@ -1,0 +1,34 @@
+name: Kkami fast Gemini Kore segments backup
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/kkami-fast-20261124.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ffmpeg and Gemini
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python -m pip install -q 'google-genai>=1,<3'
+      - name: Eleven Gemini Kore scene narrations
+        run: python -u kkami_fast_gemini_20261124.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kkami-fast-gemini
+          path: |
+            kkami_fast/clip_*.wav
+            kkami_fast/full.wav
+            kkami_fast/manifest.json
+          retention-days: 7
