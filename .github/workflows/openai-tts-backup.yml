@@ -34,7 +34,8 @@ jobs:
         run: |
           if [ -z "$OPENAI_API_KEY" ]; then
             echo 'ready=false' >> "$GITHUB_OUTPUT"
-            echo '::warning::Add OPENAI_API_KEY in repository Actions secrets.'
+            echo '::error::Add OPENAI_API_KEY in repository Actions secrets.'
+            exit 1
           else
             echo 'ready=true' >> "$GITHUB_OUTPUT"
           fi
@@ -46,14 +47,14 @@ jobs:
         if: steps.key.outputs.ready == 'true'
         timeout-minutes: 3
         run: |
-          python3 -u - <<'PY'
+          cat > /tmp/openai_voice.py <<'PY'
           import os,json,base64,wave,time,pathlib,re,difflib
           import websocket
           key=os.environ["OPENAI_API_KEY"]
           text=os.environ.get("TTS_TEXT","").strip() or "어느 골목에 아주 이상한 가게가 있었습니다."
           voice=os.environ.get("TTS_VOICE","").strip() or "marin"
           style=os.environ.get("TTS_STYLE","").strip() or "차분하고 자연스러운 한국어 나레이션"
-          out=pathlib.Path("openai_tts");out.mkdir(exist_ok=True)
+          out=pathlib.Path("openai_tts")/voice;out.mkdir(parents=True,exist_ok=True)
           ws=websocket.create_connection("wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1-mini",header=["Authorization: Bearer "+key],timeout=30)
           deadline=time.monotonic()+120
           def send(data):ws.send(json.dumps(data,ensure_ascii=False))
@@ -90,6 +91,14 @@ jobs:
           finally:ws.close()
           
           PY
+          if [ -n "$TTS_TEXT" ]; then
+            python3 -u /tmp/openai_voice.py
+          else
+            export TTS_TEXT='손님, 처음 오셨을 때도 이 가방은 비어 있었습니다. 그럼 나는 지금까지 대체 무엇을 짊어지고 다닌 걸까요?'
+            TTS_VOICE=marin TTS_STYLE='차분한 한국인 여성 나레이터, 자연스러운 감정과 발음' python3 -u /tmp/openai_voice.py
+            TTS_VOICE=cedar TTS_STYLE='중년 한국인 남성, 조용하고 진지한 대화체' python3 -u /tmp/openai_voice.py
+            TTS_VOICE=ash TTS_STYLE='칠십대 한국인 노인, 낮고 여유로운 목소리와 자연스러운 말투' python3 -u /tmp/openai_voice.py
+          fi
       - uses: actions/upload-artifact@v4
         if: always() && steps.key.outputs.ready == 'true'
         with:
