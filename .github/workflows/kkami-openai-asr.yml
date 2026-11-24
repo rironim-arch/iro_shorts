@@ -1,0 +1,35 @@
+name: Kkami OpenAI exact word timing
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/kkami-openai-asr.yml'
+permissions:
+  actions: read
+  contents: read
+jobs:
+  asr:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-openai-tts-final
+          run-id: 45419898094
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: input_audio
+      - run: pip install -q 'openai>=2,<5'
+      - name: Compare real speech word timestamps
+        run: python -u kkami_openai_asr.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kkami-openai-word-times
+          path: kkami_asr.json
+          retention-days: 7
