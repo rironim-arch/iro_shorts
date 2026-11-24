@@ -1,0 +1,60 @@
+name: Worry shop remaining grouped Gemini voices
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/worry-shop-grouped-rest-20261124.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate remaining voice groups only
+        run: |
+          python -u - <<'PY'
+          import os,json,urllib.request,urllib.error,base64,wave,time,pathlib
+          GROUPS=json.loads("[[\"n\",\"어느 골목에 아주 이상한 가게가 있었습니다. 돈을 내면 자신의 걱정을 맡길 수 있는 가게였습니다. 한 중년 남자가 커다란 가방을 들고 찾아왔습니다.\"],[\"m\",\"여기 있는 걱정들을 전부 맡아주시오.\"],[\"o\",\"그러시죠. 한 달에 만 원입니다.\"],[\"n\",\"남자는 홀가분한 마음으로 가게를 나섰습니다. 그런데 한 시간도 지나지 않아 다시 돌아왔습니다.\"],[\"m\",\"혹시 내 걱정들이 없어지거나 하진 않겠죠?\"],[\"o\",\"없어지면 좋은 것 아닙니까?\"],[\"m\",\"아니, 그래도 중요한 걱정들이라서요.\"],[\"n\",\"다음 날에도 남자는 찾아왔습니다. 가게에 도둑이 들지는 않을까. 주인이 갑자기 문을 닫지는 않을까. 그렇게 남자는 매일 가게를 찾아왔습니다. 결국 한 달 뒤, 남자는 걱정을 전부 돌려달라고 했습니다.\"],[\"m\",\"당신한테 맡겨놓으니 더 신경 쓰여서 못 살겠소.\"],[\"n\",\"가게 주인은 가방을 돌려주며 말했습니다.\"],[\"o\",\"손님, 처음 오셨을 때도 이 가방은 비어 있었습니다.\"],[\"n\",\"남자는 황급히 가방을 열어보았습니다. 정말 아무것도 들어 있지 않았습니다. 남자는 빈 가방을 한참 바라보더니 물었습니다.\"],[\"m\",\"그럼 나는 지금까지 대체 뭘 짊어지고 다닌 거요?\"],[\"n\",\"가게 주인은 대답하지 않았습니다. 그저 남자의 어깨를 바라보았습니다. 아무것도 들지 않은 남자의 어깨는 여전히 무겁게 처져 있었습니다.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\"]]")
+          out=pathlib.Path("grouped");out.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Orus","o":"Algenib"}
+          styles={"n":"A calm intimate Korean storyteller. Understated, thoughtful.","m":"An anxious Korean man in his early fifties, natural conversational acting.","o":"A gentle Korean male shopkeeper in his seventies, quietly wise."}
+          for role in ["n","m","o"]:
+           rows=[(i,s) for i,(r,s) in enumerate(GROUPS,1) if i>=4 and r==role]
+           text="\n\n".join(s for i,s in rows)
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":text,"annotations":[{"type":"speech_metadata","style":styles[role]+" Speak Korean at a natural consistent pace. Read all paragraphs verbatim in order. Leave a clear pause of two seconds between paragraphs, but natural shorter pauses within each paragraph. No extra words."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(3):
+            try:
+             print("REQUEST",role,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=90) as r:response=json.load(r)
+             a=[c for s in response.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not a:raise RuntimeError("No audio")
+             data=base64.b64decode(a[-1]["data"]);dest=out/f"{role}.wav"
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             (out/f"{role}.json").write_text(json.dumps({"rows":rows,"voice":voices[role],"duration":d},ensure_ascii=False),encoding="utf8")
+             print("GENERATED",role,d,flush=True);break
+            except urllib.error.HTTPError as e:
+             detail=e.read().decode(errors="replace").replace(key,"[redacted]")
+             print("ERROR",role,e.code,detail[:1800],flush=True)
+             if e.code==429 and attempt<2:time.sleep(65)
+             else:break
+            except Exception as e:
+             print("ERROR",role,str(e).replace(key,"[redacted]"),flush=True)
+             if attempt<2:time.sleep(5)
+           if not (out/f"{role}.wav").exists():raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worry-shop-grouped-voices
+          path: grouped/
+          retention-days: 7
