@@ -1,0 +1,41 @@
+name: OpenAI REST authentication diagnostic
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/openai-auth-diagnostic-20261124.yml'
+permissions:
+  contents: read
+jobs:
+  auth:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Check authentication without exposing secret
+        run: |
+          python3 -u - <<'PY'
+          import os,json,urllib.request,urllib.error
+          key=os.environ.get("OPENAI_API_KEY","").strip()
+          if not key:
+              print("RESULT: missing secret")
+              raise SystemExit(1)
+          req=urllib.request.Request("https://api.openai.com/v1/models",headers={"Authorization":"Bearer "+key})
+          try:
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  data=json.load(r)
+                  print("RESULT: HTTP",r.status)
+                  print("MODELS:",len(data.get("data",[])))
+                  print("AUDIO MODELS:",[x["id"] for x in data.get("data",[]) if any(s in x["id"] for s in ("tts","realtime","audio"))])
+          except urllib.error.HTTPError as e:
+              try:
+                  err=json.loads(e.read()).get("error",{})
+              except Exception:
+                  err={}
+              print("RESULT: HTTP",e.code,"TYPE:",err.get("type"),"CODE:",err.get("code"))
+              raise SystemExit(1)
+          except Exception as e:
+              print("RESULT:",type(e).__name__)
+              raise SystemExit(1)
+          PY
