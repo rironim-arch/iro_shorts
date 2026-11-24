@@ -17,7 +17,10 @@ jobs:
         run: |
           python3 -u - <<'PY'
           import os,json,urllib.request,urllib.error
-          key=os.environ.get("OPENAI_API_KEY","").strip()
+          raw=os.environ.get("OPENAI_API_KEY","")
+          key=raw.strip()
+          print("KEY_FORMAT:", "secret_key" if key.startswith("sk-") else "key_identifier" if key.startswith("key_") else "other")
+          print("KEY_LENGTH:",len(key),"OUTER_WHITESPACE:",raw!=key,"INNER_WHITESPACE:",any(c.isspace() for c in key))
           if not key:
               print("RESULT: missing secret")
               raise SystemExit(1)
