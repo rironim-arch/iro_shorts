@@ -1,0 +1,91 @@
+name: Nabi longform Gemini resume clips 29 to 69
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/nabi-longform-resume-20261124.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  tts:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        range: ['29-38', '39-48', '49-58', '59-69']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      NABI_RANGE: ${{ matrix.range }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          python -m pip install --disable-pip-version-check -q 'google-genai>=1,<3' 'faster-whisper>=1.1,<2'
+          python -m py_compile nabi_longform_resume_20261124.py
+      - name: Generate missing Gemini clips only
+        run: |
+          test -n "$GEMINI_API_KEY"
+          python -u nabi_longform_resume_20261124.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nabi-audio-${{ matrix.range }}
+          path: |
+            nabi_longform_audio/clip_*.wav
+            nabi_longform_audio/manifest.json
+          retention-days: 14
+  merge:
+    needs: tts
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nabi-longform-gemini-audio
+          run-id: 45321667558
+          github-token: ${{ github.token }}
+          path: parts/01-28
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nabi-audio-*
+          path: parts
+      - name: Validate every clip and combine audio and timestamps
+        shell: python
+        run: |
+          import json,wave
+          from pathlib import Path
+          out=Path("nabi_final_audio");out.mkdir()
+          records={}
+          for p in Path("parts").glob("*/manifest.json"):
+              for r in json.loads(p.read_text(encoding="utf-8"))["clips"]:
+                  i=r["i"]
+                  if i in records: raise RuntimeError(f"Duplicate clip {i}")
+                  records[i]=(r,p.parent/r["file"])
+          missing=sorted(set(range(1,70))-records.keys())
+          if missing:
+              raise RuntimeError(f"Missing clips: {missing}")
+          t=0.;clips=[]
+          with wave.open(str(out/"full.wav"),"wb") as dst:
+              dst.setparams((1,2,24000,0,"NONE","not compressed"))
+              for i,(r,p) in sorted(records.items()):
+                  with wave.open(str(p),"rb") as src:
+                      assert (src.getnchannels(),src.getsampwidth(),src.getframerate())==(1,2,24000),p
+                      d=src.getnframes()/24000
+                      dst.writeframes(src.readframes(src.getnframes()))
+                  r["start"]=round(t,4);t+=d;r["end"]=round(t,4);r["duration"]=round(d,4)
+                  clips.append(r)
+          (out/"manifest.json").write_text(json.dumps({"title":"고양이의 보은 – 나비","tts_model":"gemini-3.8-flash-tts","complete":True,"expected_clips":69,"duration":round(t,4),"clips":clips},ensure_ascii=False,indent=2),encoding="utf-8")
+          print("MERGED",len(clips),t,flush=True)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nabi-complete-gemini-audio
+          path: nabi_final_audio/
+          retention-days: 14
