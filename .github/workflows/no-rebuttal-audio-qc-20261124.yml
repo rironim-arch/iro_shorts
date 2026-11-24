@@ -1,0 +1,62 @@
+name: No rebuttal audio word timing QC
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/no-rebuttal-audio-qc-20261124.yml'
+permissions:
+  actions: read
+  contents: read
+jobs:
+  qc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: no-rebuttal-gemini-voices
+          path: inputs
+          github-token: ${{ github.token }}
+          run-id: 45360664182
+      - name: Verify Gemini audio with word timestamp transcription
+        run: |
+          python3 -u - <<'PY'
+          import os,pathlib,wave,json,urllib.request,urllib.error,uuid,io
+          root=pathlib.Path("qc");root.mkdir(exist_ok=True)
+          paths={}
+          for p in pathlib.Path("inputs").rglob("raw_*.wav"):paths[int(p.stem.split("_")[-1])]=p
+          assert sorted(paths)==list(range(1,15)), sorted(paths)
+          bounds=[]
+          buf=io.BytesIO()
+          with wave.open(buf,"wb") as out:
+           out.setnchannels(1);out.setsampwidth(2);out.setframerate(24000)
+           t=0
+           for i,p in sorted(paths.items()):
+            with wave.open(str(p),"rb") as w:
+             assert (w.getnchannels(),w.getsampwidth(),w.getframerate())==(1,2,24000)
+             d=w.getnframes()/24000
+             out.writeframesraw(w.readframes(w.getnframes()))
+             bounds.append({"i":i,"start":t,"end":t+d});t+=d
+          boundary=uuid.uuid4().hex
+          parts=[]
+          for k,v in [("model","whisper-1"),("language","ko"),("response_format","verbose_json"),("timestamp_granularities[]","word"),("timestamp_granularities[]","segment")]:
+           parts.append(("--"+boundary+"\r\nContent-Disposition: form-data; name=\""+k+"\"\r\n\r\n"+v+"\r\n").encode())
+          parts.append(("--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\"story.wav\"\r\nContent-Type: audio/wav\r\n\r\n").encode()+buf.getvalue()+b"\r\n")
+          parts.append(("--"+boundary+"--\r\n").encode())
+          req=urllib.request.Request("https://api.openai.com/v1/audio/transcriptions",data=b"".join(parts),headers={"Authorization":"Bearer "+os.environ["OPENAI_API_KEY"],"Content-Type":"multipart/form-data; boundary="+boundary})
+          try:
+           with urllib.request.urlopen(req,timeout=90) as r: result=json.load(r)
+          except urllib.error.HTTPError as e:
+           print("ASR HTTP",e.code,e.read().decode(errors="replace")[:400]);raise SystemExit(1)
+          (root/"asr.json").write_text(json.dumps({"bounds":bounds,"result":result},ensure_ascii=False),encoding="utf8")
+          print("ASR words",len(result.get("words",[])),"duration",result.get("duration"),flush=True)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: no-rebuttal-word-timing-qc
+          path: qc/
+          retention-days: 7
