@@ -1,0 +1,37 @@
+name: Kkami Kore condensed opening for under 3 mins
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/kkami-kore-trimmed.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        index: [1, 2, 3, 4, 5]
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      INDEX: ${{ matrix.index }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python -m pip install -q 'google-genai>=1,<3'
+      - run: python -u kkami_kore_trimmed.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kkami-trim-${{ matrix.index }}
+          path: |
+            kkami_trim/clip_*.wav
+            kkami_trim/manifest.json
+          retention-days: 7
