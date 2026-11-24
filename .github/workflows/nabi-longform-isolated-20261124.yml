@@ -1,0 +1,122 @@
+name: Nabi recover missing clips with hard deadlines
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/nabi-longform-isolated-20261124.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  tts:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {batch: a, ids: '30,31,32,33,34'}
+          - {batch: b, ids: '35,36,37,38,39'}
+          - {batch: c, ids: '40,41,42,43,44'}
+          - {batch: d, ids: '45,46,47,48,54'}
+          - {batch: e, ids: '55,56,57,58,59'}
+          - {batch: f, ids: '60,61,62,63,64'}
+          - {batch: g, ids: '65,66,67,68,69'}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      NABI_IDS: ${{ matrix.ids }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          python -m pip install --disable-pip-version-check -q 'google-genai>=1,<3' 'faster-whisper>=1.1,<2'
+          python -m py_compile nabi_longform_isolated_clip.py nabi_longform_isolated_driver.py
+      - name: Cache Whisper weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface/hub
+          key: nabi-whisper-small-v1
+      - name: Prepare ASR model once per runner
+        run: timeout 180 python -c 'from faster_whisper import WhisperModel; WhisperModel("small",device="cpu",compute_type="int8",cpu_threads=4)'
+      - name: Recover missing clips with isolated hard timeout
+        run: |
+          test -n "$GEMINI_API_KEY"
+          python -u nabi_longform_isolated_driver.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nabi-recovery-${{ matrix.batch }}
+          path: |
+            nabi_recovered/**/clip_*.wav
+            nabi_recovered/**/manifest.json
+            nabi_recovered/batch_status.json
+          retention-days: 14
+  merge:
+    needs: tts
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nabi-longform-gemini-audio
+          run-id: 45321667558
+          github-token: ${{ github.token }}
+          path: parts/original
+      - uses: actions/download-artifact@v4
+        with:
+          name: nabi-audio-29-38
+          run-id: 45328883842
+          github-token: ${{ github.token }}
+          path: parts/second-a
+      - uses: actions/download-artifact@v4
+        with:
+          name: nabi-audio-49-58
+          run-id: 45328883842
+          github-token: ${{ github.token }}
+          path: parts/second-b
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nabi-recovery-*
+          path: parts/recovery
+      - name: Merge only validated records from all three runs
+        shell: python
+        run: |
+          import json,wave
+          from pathlib import Path
+          out=Path("nabi_final_audio");out.mkdir()
+          records={}
+          for p in Path("parts").rglob("manifest.json"):
+              for r in json.loads(p.read_text(encoding="utf-8"))["clips"]:
+                  i=r["i"]
+                  if i in records: raise RuntimeError(f"Duplicate clip {i}")
+                  f=p.parent/r["file"]
+                  if f.is_file(): records[i]=(r,f)
+          missing=sorted(set(range(1,70))-records.keys())
+          (out/"status.json").write_text(json.dumps({"passed":sorted(records),"missing":missing}),encoding="utf-8")
+          print("MISSING",missing,flush=True)
+          if missing: raise RuntimeError(f"Missing clips: {missing}")
+          t=0.;clips=[]
+          with wave.open(str(out/"full.wav"),"wb") as dst:
+              dst.setparams((1,2,24000,0,"NONE","not compressed"))
+              for i,(r,p) in sorted(records.items()):
+                  with wave.open(str(p),"rb") as src:
+                      assert (src.getnchannels(),src.getsampwidth(),src.getframerate())==(1,2,24000),p
+                      d=src.getnframes()/24000
+                      assert abs(d-r["duration"])<0.05,p
+                      dst.writeframes(src.readframes(src.getnframes()))
+                  r["start"]=round(t,4);t+=d;r["end"]=round(t,4);r["duration"]=round(d,4)
+                  clips.append(r)
+          (out/"manifest.json").write_text(json.dumps({"title":"고양이의 보은 – 나비","tts_model":"gemini-3.8-flash-tts","complete":True,"expected_clips":69,"duration":round(t,4),"clips":clips},ensure_ascii=False,indent=2),encoding="utf-8")
+          print("MERGED",len(clips),t,flush=True)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nabi-recovery-result
+          path: nabi_final_audio/
+          retention-days: 14
