@@ -1,0 +1,98 @@
+name: OpenAI TTS backup and voice audition
+on:
+  workflow_dispatch:
+    inputs:
+      text:
+        description: Korean script to speak verbatim
+        required: true
+        default: '어느 골목에 아주 이상한 가게가 있었습니다.'
+      voice:
+        description: Realtime voice
+        type: choice
+        options: [marin, cedar, alloy, ash, ballad, coral, echo, sage, shimmer, verse]
+        default: marin
+      style:
+        description: Delivery style
+        default: '차분하고 자연스러운 한국어 나레이션'
+  push:
+    paths:
+      - '.github/workflows/openai-tts-backup.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      TTS_TEXT: ${{ inputs.text }}
+      TTS_VOICE: ${{ inputs.voice }}
+      TTS_STYLE: ${{ inputs.style }}
+    steps:
+      - name: Check API key without printing it
+        id: key
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo '::warning::Add OPENAI_API_KEY in repository Actions secrets.'
+          else
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install lightweight WebSocket client
+        if: steps.key.outputs.ready == 'true'
+        timeout-minutes: 1
+        run: python3 -m pip install --disable-pip-version-check --timeout 10 --retries 1 websocket-client
+      - name: Generate WAV and verify model transcript
+        if: steps.key.outputs.ready == 'true'
+        timeout-minutes: 3
+        run: |
+          python3 -u - <<'PY'
+          import os,json,base64,wave,time,pathlib,re,difflib
+          import websocket
+          key=os.environ["OPENAI_API_KEY"]
+          text=os.environ.get("TTS_TEXT","").strip() or "어느 골목에 아주 이상한 가게가 있었습니다."
+          voice=os.environ.get("TTS_VOICE","").strip() or "marin"
+          style=os.environ.get("TTS_STYLE","").strip() or "차분하고 자연스러운 한국어 나레이션"
+          out=pathlib.Path("openai_tts");out.mkdir(exist_ok=True)
+          ws=websocket.create_connection("wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1-mini",header=["Authorization: Bearer "+key],timeout=30)
+          deadline=time.monotonic()+120
+          def send(data):ws.send(json.dumps(data,ensure_ascii=False))
+          def recv():
+           remaining=deadline-time.monotonic()
+           if remaining<=0:raise TimeoutError("TTS overall deadline reached")
+           ws.settimeout(min(30,remaining))
+           e=json.loads(ws.recv())
+           if e.get("type")=="error":raise RuntimeError(str(e.get("error",{})).replace(key,"[redacted]"))
+           return e
+          try:
+           send({"type":"session.update","session":{"type":"realtime","model":"gpt-realtime-2.1-mini","instructions":"Read the user's text aloud verbatim in Korean. Do not add, omit, translate, or paraphrase any words. Style: "+style,"output_modalities":["audio"],"audio":{"input":{"turn_detection":None},"output":{"format":{"type":"audio/pcm","rate":24000},"voice":voice}}}})
+           while recv().get("type")!="session.updated":pass
+           send({"type":"conversation.item.create","item":{"type":"message","role":"user","content":[{"type":"input_text","text":text}]}})
+           send({"type":"response.create","response":{"output_modalities":["audio"]}})
+           pcm=bytearray();transcript=""
+           while True:
+            e=recv();kind=e.get("type")
+            if kind=="response.output_audio.delta":pcm.extend(base64.b64decode(e["delta"]))
+            elif kind=="response.output_audio_transcript.done":transcript+=e.get("transcript","")
+            elif kind=="response.done":
+             response=e["response"]
+             if response.get("status")!="completed":raise RuntimeError(str(response.get("status_details")))
+             break
+           if not pcm:raise RuntimeError("No output audio")
+           with wave.open(str(out/"speech.wav"),"wb") as w:
+            w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(pcm)
+           def norm(s):return re.sub(r"[^가-힣a-zA-Z0-9]","",s).lower()
+           ratio=difflib.SequenceMatcher(None,norm(text),norm(transcript),autojunk=False).ratio()
+           result={"model":"gpt-realtime-2.1-mini","voice":voice,"duration_seconds":len(pcm)/48000,"expected":text,"transcript":transcript,"transcript_match":ratio,"manual_review_required":True}
+           (out/"report.json").write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding="utf8")
+           print("Audio generated:",result["duration_seconds"],"seconds; transcript match:",ratio,flush=True)
+           if ratio<0.85:raise RuntimeError("Transcript mismatch; manual review required")
+          finally:ws.close()
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.key.outputs.ready == 'true'
+        with:
+          name: openai-tts-wav
+          path: openai_tts/
+          retention-days: 7
