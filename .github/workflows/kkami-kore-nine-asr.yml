@@ -1,0 +1,72 @@
+name: Kkami Kore nine scene exact subtitles
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/kkami-kore-nine-asr.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q 'openai>=2,<5'
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-trim-1
+          run-id: 45435121907
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: trims/1
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-trim-2
+          run-id: 45435121907
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: trims/2
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-trim-3
+          run-id: 45435121907
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: trims/3
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-trim-4
+          run-id: 45435121907
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: trims/4
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-trim-5
+          run-id: 45435121907
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: trims/5
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-kore-batch-3
+          run-id: 45434456190
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: batches/3
+      - uses: actions/download-artifact@v4
+        with:
+          name: kkami-kore-batch-4
+          run-id: 45434456190
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: batches/4
+      - run: python -u kkami_kore_nine_asr.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kkami-kore-nine-wordtimes
+          path: kkami_kore_v2_word_times.json
+          retention-days: 7
