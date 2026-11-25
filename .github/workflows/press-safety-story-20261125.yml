@@ -1,0 +1,69 @@
+name: Press safety story Gemini voices
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/press-safety-story-20261125.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"b\",\"그 방호장치 떼어내! 그것 때문에 생산량이 안 나오잖아!\"],[\"s\",\"사장님, 안전검사도 받지 않고 방호장치까지 떼어내다니요. 안 됩니다! 이러다 정말 사고 납니다!\"],[\"b\",\"내가 이 공장을 20년 운영했어! 여태 사고 한 번 없었는데 뭘 그렇게 유난을 떨어? 당신이 납품 물량 책임질 거야?\"],[\"n\",\"안전관리자는 1년 넘게 위험성을 보고하고 개선을 요구했지만, 사장은 생산량과 비용만을 중요하게 생각했습니다.\"],[\"n\",\"그러던 어느 날, 결국 사고가 발생했습니다. 프레스에 손이 끼인 작업자가 손가락을 잃었습니다.\"],[\"n\",\"고용노동부에서 사고 조사를 나오자 사장의 태도가 달라졌습니다.\"],[\"b\",\"저는 기계에 문제가 있는 줄 몰랐습니다. 안전관리자가 자기 일을 제대로 안 한 거죠.\"],[\"i\",\"위험하다는 보고를 받은 적이 없으십니까?\"],[\"b\",\"네! 보고받았으면 당연히 조치했겠죠. 제가 안전관리자를 괜히 월급 주고 쓰겠습니까?\"],[\"n\",\"그때 옆에 있던 안전관리자가 조용히 서류철을 꺼냈습니다.\"],[\"s\",\"1년 넘게 작성해 온 안전점검 보고서입니다. 안전검사 미실시, 방호장치 제거, 사용 중지 요청까지 모두 기록되어 있습니다.\"],[\"b\",\"아니, 내가 언제 그런 보고서를 받았다고 그래!\"],[\"s\",\"사장님, 보고드릴 때마다 직접 확인하고 서명하셨잖습니까.\"],[\"i\",\"사장님, 여기 있는 서명 전부 본인 것 맞습니까?\"],[\"n\",\"사장은 아무런 대답도 하지 못했습니다. 결국 사장은 산업안전보건법 위반으로 벌금형을 선고받았습니다.\"],[\"n\",\"책임을 떠넘기려 했지만, 자신이 직접 남긴 서명이 결정적인 증거가 된 것입니다.\"],[\"n\",\"안전을 무시해서 얻는 이익은 잠깐이지만, 사고로 인한 상처는 평생 남습니다.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\"]]")
+          OUT=Path("press_safety_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","b":"Algieba","s":"Orus","i":"Iapetus"}
+          styles={"n":"Natural Korean documentary narrator, clear steady pace, restrained.","b":"Older Korean factory owner, impatient forceful and dismissive early, defensive and evasive later, believable speech.","s":"Korean male safety manager, urgent professional warning early, calm confident factual delivery later.","i":"Korean male labor inspector, composed, firm, matter of fact."}
+          def generate(item):
+           i,(role,script)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" Natural Korean, steady conversational pace. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(2):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(5)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if isinstance(e,urllib.error.HTTPError) and e.code==429:raise SystemExit(1)
+             if attempt==1:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: press-safety-voices
+          path: press_safety_audio/
+          retention-days: 7
