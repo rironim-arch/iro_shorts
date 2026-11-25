@@ -1,0 +1,69 @@
+name: Business pretend Gemini voices
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/business-pretend-gemini-20261125.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"f\",\"야, 민수야. 요즘 가게 장사 잘된다며? 오늘도 네가 쏘는 거냐?\"],[\"m\",\"그럼! 먹고 싶은 거 마음껏 시켜!\"],[\"n\",\"작은 음식점을 운영하는 49세 민수. 친구들에게 장사가 잘된다는 말을 듣는 것이 좋았습니다. 모임에 나갈 때마다 술값을 계산했고, 친구들은 그런 민수를 부러워했습니다.\"],[\"n\",\"하지만 실상은 달랐습니다. 매출은 점점 줄어들고, 월세와 인건비에 식자재 대금까지 내고 나면 남는 돈이 거의 없었습니다. 그야말로 밑 빠진 독에 물 붓기였습니다.\"],[\"n\",\"어느 날 아내가 통장을 보여주며 말했습니다.\"],[\"w\",\"당신, 우리 이번 달 가게 월세도 부족해. 그런데 어제 친구들 술값으로 25만 원이나 썼어?\"],[\"m\",\"친구들한테 장사 안 된다고 말하기도 좀 그렇잖아.\"],[\"w\",\"당신은 친구들한테 못사는 사람으로 보이는 게 무서워? 우리가 정말 못살게 되는 게 무서워?\"],[\"n\",\"그 말을 듣는 순간 민수는 정신이 번쩍 들었습니다. 며칠 뒤 친구들과의 모임에서 처음으로 솔직하게 이야기했습니다.\"],[\"m\",\"사실 나 요즘 장사가 많이 어려워. 앞으로는 술값 각자 계산하자.\"],[\"f\",\"뭐야? 그렇게 잘난 척하더니 별것도 아니었네?\"],[\"n\",\"그날 이후 먼저 연락하던 친구들의 연락이 하나둘 줄어들었습니다. 처음에는 서운했습니다. 하지만 시간이 지나면서 오히려 마음이 편해졌습니다.\"],[\"n\",\"잘사는 척할 필요도, 인정받기 위해 돈을 쓸 필요도 없어졌기 때문입니다. 민수는 뒤늦게 깨달았습니다.\"],[\"n\",\"친구들의 칭찬에 기뻐하며 돈을 쓰고, 무시당하기 싫어서 자신의 현실을 숨겼던 지난날. 자신의 인생을 살고 있다고 생각했지만, 사실은 타인의 시선에 끌려다니고 있었습니다.\"],[\"n\",\"남들에게 잘사는 사람으로 보이는 것보다, 실제로 잘 살아가는 것이 훨씬 중요합니다.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\"]]")
+          OUT=Path("business_pretend_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Algieba","w":"Kore","f":"Orus"}
+          styles={"n":"Natural Korean reflective storyteller, brisk but clear, restrained emotion.","m":"Middle-aged Korean restaurant owner, cheerful bravado at first, later embarrassed and sincere.","w":"Middle-aged Korean wife, concerned, firm, natural conversational speech.","f":"Middle-aged Korean male friend, casual joking then dismissive, not exaggerated."}
+          def generate(item):
+           i,(role,script)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" Natural Korean, steady conversational pace. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(2):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(5)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if isinstance(e,urllib.error.HTTPError) and e.code==429:raise SystemExit(1)
+             if attempt==1:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: business-pretend-voices
+          path: business_pretend_audio/
+          retention-days: 7
