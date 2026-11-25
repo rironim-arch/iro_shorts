@@ -1,0 +1,69 @@
+name: Daughter in law Gemini voices
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/daughter-in-law-gemini-20261125.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"g\",\"역시 우리 큰며느리밖에 없어. 음식도 잘하고 어쩜 이렇게 싹싹하니?\"],[\"n\",\"결혼 20년 동안 명절마다 혼자 음식을 준비했던 은희. 힘들어도 착한 며느리라는 말을 들으면 기분이 좋았습니다.\"],[\"n\",\"그러던 어느 해, 허리 통증이 심해진 은희는 조심스럽게 이야기를 꺼냈습니다.\"],[\"w\",\"어머니, 이번 명절에는 음식을 조금만 하면 안 될까요? 요즘 허리가 너무 아파서요.\"],[\"g\",\"명절이 일 년에 몇 번이나 된다고 그래? 여태 잘하던 애가 갑자기 왜 그러니?\"],[\"m\",\"그냥 이번까지만 해. 괜히 어머니 기분 상하게 하지 말고.\"],[\"n\",\"결국 은희는 진통제를 먹으며 음식을 준비했습니다. 그 모습을 지켜보던 대학생 딸이 말했습니다.\"],[\"d\",\"엄마, 할머니한테 착한 며느리라는 말 듣는 게 그렇게 중요해?\"],[\"w\",\"그래도 가족인데 서로 좋게 지내야지.\"],[\"d\",\"엄마가 아픈 건 아무도 신경 안 쓰는데, 엄마는 왜 다른 사람 기분만 신경 써?\"],[\"n\",\"은희는 아무런 대답도 하지 못했습니다. 20년 동안 좋은 사람이라는 평가를 받기 위해 정작 자신을 돌보지 않았습니다.\"],[\"n\",\"칭찬받기 위해 무리하고, 미움받기 싫어서 참는다면 그것은 배려가 아니라 자신을 희생하는 일이 될 수 있습니다.\"],[\"n\",\"누군가에게 좋은 사람이 되기 전에, 자신에게 먼저 좋은 사람이 되어주세요.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\"]]")
+          OUT=Path("daughter_in_law_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Algieba","w":"Kore","g":"Gacrux","d":"Leda"}
+          styles={"n":"Natural Korean reflective storyteller, consistent brisk but clear pace.","m":"Middle-aged Korean husband, casual dismissive tone, natural.","w":"Middle-aged Korean woman, tired, politely asking, restrained emotion.","g":"Older Korean woman in her seventies, warm praise at first then disappointed and mildly reproachful, realistic.","d":"Korean college-aged daughter, caring but direct, sincere, no shouting."}
+          def generate(item):
+           i,(role,script)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" Natural Korean, steady conversational pace. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(2):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(5)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if isinstance(e,urllib.error.HTTPError) and e.code==429:raise SystemExit(1)
+             if attempt==1:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daughter-in-law-voices
+          path: daughter_in_law_audio/
+          retention-days: 7
