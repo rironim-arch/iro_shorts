@@ -1,0 +1,69 @@
+name: Authentic friendship Gemini acting
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/authentic-friendship-gemini-20261126.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"n\",\"오십 세 성호는 매주 주말이면 사람들을 만났습니다. 직장 동료, 동창, 친목 모임까지. 하지만 약속이 취소되는 날이면 오히려 기분이 좋았습니다.\",\"Reflective conversational storytelling, engaging opening.\"],[\"w\",\"오늘 모임 취소됐다며? 아쉽겠네?\",\"Casual curious question to her husband, light tone.\"],[\"m\",\"아니, 오히려 잘됐어. 오늘은 좀 쉬겠다.\",\"Genuine quiet relief, casual and relaxed.\"],[\"n\",\"어느 날 오랜만에 고향 친구를 만났습니다. 두 사람은 작은 식당에서 소주 한잔을 기울였습니다.\",\"Warm transition, natural pace.\"],[\"f\",\"요즘 사는 건 어때?\",\"Old friend, easy and sincere, everyday Korean speech.\"],[\"m\",\"뭐, 그냥 먹고사는 거지. 회사도 힘들고 사는 게 별로 재미가 없다.\",\"Honest understated fatigue, not exaggerated sadness.\"],[\"f\",\"나도 그래. 우리 나이가 그런가 보다.\",\"Understanding, gently matter-of-fact, no melodrama.\"],[\"n\",\"두 사람은 대단한 이야기도, 특별히 재미있는 이야기도 하지 않았습니다. 그런데 이상하게도 집으로 돌아오는 길이 편안했습니다.\",\"Gentle emotional shift, clear and connected.\"],[\"n\",\"다른 모임에서는 잘사는 척했고, 힘든 일이 있어도 괜찮은 척했습니다. 하지만 오늘은 그럴 필요가 없었습니다.\",\"Thoughtful and sincere, natural short pauses.\"],[\"n\",\"그제야 성호는 알았습니다. 사람을 만나는 일이 싫어진 것이 아니라, 사람을 만날 때마다 다른 사람이 되어야 하는 일이 힘들었다는 것을.\",\"Quiet realization, restrained emphasis.\"],[\"n\",\"좋은 관계란 나를 멋지게 보여줄 수 있는 관계가 아니라, 초라한 모습까지 숨기지 않아도 되는 관계입니다.\",\"Warm, meaningful conclusion, not preachy.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\",\"Natural closing, clear final syllables.\"]]")
+          OUT=Path("authentic_friendship_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Orus","f":"Algenib","w":"Kore"}
+          styles={"n":"Warm Korean reflective narrator.","m":"Korean man aged 50, natural ordinary speech.","f":"Korean male childhood friend aged 50, relaxed.","w":"Korean middle-aged wife, casual."}
+          def generate(item):
+           i,(role,script,acting)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" "+acting+" Natural Korean, steady conversational pace, natural connected phrasing, no shouting, no unnatural breathiness, no rushed syllables. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(3):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(9)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if isinstance(e,urllib.error.HTTPError) and e.code==429:print('RATE_LIMIT',flush=True)
+             if attempt==2:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: authentic-friendship-voices
+          path: authentic_friendship_audio/
+          retention-days: 7
