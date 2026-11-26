@@ -1,0 +1,69 @@
+name: Mother and grown son Gemini acting
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/mother-grown-son-gemini-20261127.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"s\",\"엄마, 내 와이셔츠 어디 있어?\",\"Casual hurried adult son, taking help for granted.\"],[\"m\",\"다림질해서 옷장에 걸어놨어. 밥 먹고 가.\",\"Warm older mother, everyday affection.\"],[\"s\",\"아, 늦었어. 그리고 엄마, 나 생활비 좀 보내줘.\",\"Distracted, matter-of-fact, no shouting.\"],[\"m\",\"알았어. 돈 떨어지면 또 얘기하고.\",\"Gentle, habitual caring.\"],[\"n\",\"예순일곱 살 순자는 마흔이 넘은 아들의 밥과 빨래, 생활비까지 챙겨주며 살았습니다.\",\"Reflective brief narration.\"],[\"w\",\"순자야, 이제 아들도 나이가 있는데 알아서 하게 좀 둬.\",\"Concerned old friend, speaking frankly.\"],[\"m\",\"내 자식인데 내가 아니면 누가 챙겨줘? 내가 살아 있을 때라도 해줘야지.\",\"Defensive but tender, genuine maternal concern.\"],[\"n\",\"그러던 어느 날, 순자는 갑작스럽게 쓰러져 병원에 입원했습니다. 병실을 찾아온 아들이 입을 열었습니다.\",\"Restrained serious transition.\"],[\"s\",\"엄마, 언제 퇴원해? 집에 먹을 것도 없고 빨래도 잔뜩 쌓였어.\",\"Impatient, concerned only about household inconvenience; ordinary conversational delivery.\"],[\"m\",\"냉장고에 반찬 있을 텐데…\",\"Tired older woman in hospital, soft but clear.\"],[\"s\",\"다 먹었어. 아, 진짜 불편해 죽겠네.\",\"Irritated sigh, natural, not exaggerated.\"],[\"m\",\"아들아… 엄마 아픈 건 괜찮냐고 안 물어봐?\",\"Hurt, quiet disbelief, slight pause, avoid theatrical crying.\"],[\"s\",\"병원에 있으니까 알아서 치료해 주겠지. 나 갈게.\",\"Dismissive, impatient, mundane rather than villainous.\"],[\"n\",\"아들이 떠난 병실에서 순자는 조용히 눈물을 흘렸습니다. 평생 아들이 자신 없이 고생할까 걱정했지만, 정작 아들은 어머니의 고생을 당연하게 여기고 있었습니다.\",\"Restrained grief.\"],[\"n\",\"사랑해서 모든 것을 해줬지만, 사랑하기 때문에 해주지 말았어야 할 것도 있었습니다.\",\"Quiet emotional emphasis, clear diction.\"],[\"n\",\"부모가 자식에게 남겨줘야 할 것은 평생 의지할 사람이 아니라, 혼자서도 살아갈 수 있는 힘입니다.\",\"Thoughtful, concise closing.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\",\"Warm natural closing.\"]]")
+          OUT=Path("mother_grown_son_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Gacrux","s":"Orus","w":"Sulafat"}
+          styles={"n":"Natural Korean reflective narrator.","m":"Korean woman aged 67, warm mature maternal voice, not caricature.","s":"Korean man in his early forties, casual everyday speech.","w":"Korean woman in her late sixties, friendly but frank."}
+          def generate(item):
+           i,(role,script,acting)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" "+acting+" Natural Korean, steady conversational pace, natural connected phrasing, no shouting, no unnatural breathiness, no rushed syllables. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(3):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(9)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if isinstance(e,urllib.error.HTTPError) and e.code==429:print('RATE_LIMIT',flush=True)
+             if attempt==2:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mother-grown-son-voices
+          path: mother_grown_son_audio/
+          retention-days: 7
