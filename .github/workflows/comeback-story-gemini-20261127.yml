@@ -1,0 +1,69 @@
+name: Comeback story Gemini acting
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/comeback-story-gemini-20261127.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"w\",\"여보, 우리 도련님은 이제 재기하기 힘들겠어. 아버님도 돌아가셨는데 앞으로 어떻게 살려고 그러는지…\",\"Low private conversational voice, slightly dismissive, not shouting or exaggerated.\"],[\"b\",\"아휴… 알아서 하겠지.\",\"A weary sigh, then quietly evasive. Sounds like he is reluctant to disagree with his wife.\"],[\"w\",\"괜히 마음 약해져서 돈 빌려주고 그러지 마요.\",\"Firm, quietly warning her husband, realistic ordinary speech.\"],[\"n\",\"아버지의 장례식장에서 민호는 우연히 형 부부의 대화를 들었습니다. 사업 실패로 모든 것을 잃었던 민호에게 그 말은 깊은 상처로 남았습니다.\",\"Restrained solemn storytelling.\"],[\"n\",\"그날부터 새벽마다 인력시장에 나갔습니다. 건설 현장에서 일하며 생활비를 아끼고 악착같이 돈을 모았습니다. 그렇게 작은 건축자재 유통업을 시작했고, 칠 년이 지나 직원 열 명을 둔 회사의 대표가 되었습니다.\",\"Steady, determined, gradually warmer.\"],[\"n\",\"그러던 어느 날, 그동안 연락조차 없던 형 부부가 사무실로 찾아왔습니다.\",\"A subtle change of mood, building anticipation.\"],[\"w\",\"어머, 도련님! 사업이 이렇게 잘되는 줄 몰랐네요. 역시 도련님은 능력이 있으시다니까.\",\"Suddenly warmly flattering, slightly opportunistic, with natural Korean inflection.\"],[\"m\",\"오랜만이네요. 무슨 일로 오셨어요?\",\"Polite but distant, calm restrained curiosity.\"],[\"w\",\"사실 형님이 퇴직하고 사업을 좀 해보려고 하는데, 도련님이 한 오천만 원 정도 도와주시면 어떨까 해서요.\",\"Carefully asking for a favor, smiling politeness, slight hesitation before amount.\"],[\"b\",\"민호야, 형이 자리 잡으면 꼭 갚을게.\",\"Embarrassed, hesitant yet earnest.\"],[\"m\",\"형, 내가 힘들었을 때 어떻게 지내는지 한 번이라도 궁금했어?\",\"Quiet hurt under a controlled voice, addressing his brother intimately, no shouting.\"],[\"b\",\"아휴… 그때는 형도 사정이 좀 있었지.\",\"Awkward, evasive, guilt showing in the pauses.\"],[\"w\",\"도련님도 참, 이제 잘됐으니까 좋은 게 좋은 거죠. 우리가 남도 아니고 가족인데.\",\"Trying to brush aside awkwardness, smooth persuasion, slightly impatient near the end.\"],[\"n\",\"민호는 잠시 형수를 바라보다가 백만 원짜리 수표 한 장을 꺼냈습니다.\",\"Quiet anticipation, a short natural pause.\"],[\"m\",\"형수님, 이거 가지고 가세요.\",\"Polite, deliberate, quietly decisive.\"],[\"w\",\"아니… 이게 뭐예요?\",\"Genuinely surprised and confused, not screaming.\"],[\"m\",\"저도 일당 십몇만 원 받으면서 다시 시작했습니다. 두 분도 열심히 사시면 충분히 재기하실 수 있을 겁니다. 그리고 형수님, 저 재기하기 힘들 거라고 하셨죠? 그 말씀 덕분에 참 열심히 살았습니다. 감사합니다.\",\"Controlled emotion, firm yet courteous, a tiny pause before 그리고 형수님, final 감사합니다 dry and understated.\"],[\"n\",\"형수는 멋쩍은 표정으로 수표를 받아 들었고, 형은 고개만 숙였습니다. 어려울 때는 모른 척하더니 성공하자 가족이라는 이름으로 찾아온 사람들.\",\"Reflective and restrained.\"],[\"n\",\"가장 통쾌한 복수는 그들을 불행하게 만드는 것이 아닙니다. 그들이 함부로 단정했던 내 인생을 보란 듯이 잘 살아내는 것입니다.\",\"Warm but firm, quiet payoff.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\",\"Natural closing, clear final syllables.\"]]")
+          OUT=Path("comeback_story_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Orus","b":"Schedar","w":"Gacrux"}
+          styles={"n":"Natural Korean reflective narrator.","m":"Korean middle-aged man, grounded natural speech.","b":"Korean older brother, mild, conflict-avoidant.","w":"Korean middle-aged woman, mature, socially adept."}
+          def generate(item):
+           i,(role,script,acting)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" "+acting+" Natural Korean, steady conversational pace, natural connected phrasing, no shouting, no unnatural breathiness, no rushed syllables. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(3):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(9)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if isinstance(e,urllib.error.HTTPError) and e.code==429:print('RATE_LIMIT',flush=True)
+             if attempt==2:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: comeback-story-voices
+          path: comeback_story_audio/
+          retention-days: 7
