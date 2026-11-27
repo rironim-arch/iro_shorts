@@ -1,0 +1,69 @@
+name: Study pressure story Gemini acting
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/study-pressure-gemini-20261127.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"m\",\"너 이번에도 삼 등이야? 엄마가 너한테 학원비를 얼마나 쓰는데 일 등을 못 해?\",\"Mother in her forties, disappointed and pressuring, sharp but natural.\"],[\"c\",\"엄마, 나도 열심히 했어…\",\"Teenage boy, quietly hurt, trying to explain, no crying.\"],[\"m\",\"열심히 하는 건 누구나 해. 결과가 좋아야지!\",\"Firm impatient correction, natural.\"],[\"n\",\"어린 시절부터 부모의 기대에 맞춰 살아온 현우. 친구들과 놀 시간도 없이 공부에만 매달렸습니다.\",\"Reflective, concise narrative.\"],[\"n\",\"결국 부모가 원하던 좋은 대학에 입학했지만, 졸업 후 회사 생활에 적응하지 못했습니다. 몇 번의 퇴사 끝에 현우는 방에 틀어박혀 게임만 하며 지냈습니다.\",\"Measured somber transition.\"],[\"m\",\"너 이제 서른두 살이야! 언제까지 방에서 게임만 할 거야? 엄마가 너를 어떻게 키웠는데!\",\"Older mother, frustration and worry, not screaming.\"],[\"s\",\"엄마는 내가 뭘 하고 싶은지 한 번이라도 물어봤어?\",\"Adult son, hurt and restrained, direct.\"],[\"m\",\"그게 다 너 잘되라고 그런 거잖아!\",\"Defensive, genuinely believes this.\"],[\"s\",\"어릴 때는 공부만 잘하면 된다고 했잖아. 친구도 필요 없고, 놀지도 말라고 했잖아.\",\"Years of suppressed frustration, natural phrasing.\"],[\"s\",\"근데 이제 와서 사람들과 잘 어울리고 사회생활도 잘하라고?\",\"Hurt disbelief, controlled intensity.\"],[\"s\",\"엄마, 나는 사람 만나는 게 무서워. 뭘 해도 또 실패할 것 같아.\",\"Vulnerable, honest fear, softer, not melodramatic.\"],[\"n\",\"어머니는 아무런 대답도 하지 못했습니다. 자식의 행복보다 부모의 기대가 앞서는 순간, 사랑은 욕심이 됩니다.\",\"Short reflective closing, gentle firmness.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\",\"Clear natural ending.\"]]")
+          OUT=Path("study_pressure_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Gacrux","c":"Puck","s":"Orus"}
+          styles={"n":"Natural Korean reflective narrator.","m":"Korean mother, middle-aged then older, realistic conversational acting.","c":"Korean teenage male student, youthful but natural.","s":"Korean man aged 32, withdrawn, realistic."}
+          def generate(item):
+           i,(role,script,acting)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" "+acting+" Natural Korean, steady conversational pace, natural connected phrasing, no shouting, no unnatural breathiness, no rushed syllables. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(3):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(9)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if isinstance(e,urllib.error.HTTPError) and e.code==429:print('RATE_LIMIT',flush=True)
+             if attempt==2:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: study-pressure-voices
+          path: study_pressure_audio/
+          retention-days: 7
