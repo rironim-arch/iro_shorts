@@ -1,0 +1,69 @@
+name: Misuk market comeback Gemini acting
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/misuk-market-gemini-20261127.yml'
+permissions:
+  contents: read
+jobs:
+  voice:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Generate dialogue groups with Gemini direct REST
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+          import os,json,urllib.request,urllib.error,base64,wave,time,concurrent.futures,io
+          GROUPS=json.loads("[[\"h\",\"당신이 나 없이 뭘 할 수 있는데? 평생 집에서 밥이나 하던 사람이.\",\"Cold contemptuous husband, ordinary speech, not shouting.\"],[\"n\",\"결혼 이십팔 년 만에 남편의 외도를 알게 된 쉰네 살 미숙은 이혼을 결심했습니다.\",\"Restrained storytelling.\"],[\"m\",\"나 이 나이에 어디 가서 돈을 벌겠니? 그냥 참고 살아야 하나 봐.\",\"Worried, vulnerable, natural quiet conversation.\"],[\"w\",\"너 음식 솜씨 좋잖아. 우리도 네가 만든 반찬은 돈 주고라도 사 먹고 싶다고 했었잖니.\",\"Warm old friend, sincere encouragement.\"],[\"n\",\"미숙은 이혼 후 동네에 작은 반찬가게를 열었습니다. 처음에는 재료비도 건지기 힘들었지만, 손맛이 좋다는 소문이 나면서 단골손님이 늘어났습니다.\",\"Measured, gradually hopeful.\"],[\"n\",\"그렇게 오 년이 흘러 직원도 여러 명 생겼고, 대형마트에도 반찬을 납품하게 되었습니다. 어느 날 딸이 찾아왔습니다.\",\"Warm restrained pride, transition.\"],[\"d\",\"엄마, 아빠가 엄마 사업 잘된다는 얘기 들었나 봐. 한번 만나고 싶대.\",\"Adult daughter, gently broaching awkward topic.\"],[\"m\",\"갑자기 나를 왜?\",\"Calm surprise.\"],[\"d\",\"엄마랑 살 때가 좋았다고 그러더라. 엄마가 해주던 음식도 그립고.\",\"Quietly relaying father's message.\"],[\"m\",\"그 사람은 내가 해주는 밥은 좋아했어도, 밥을 만드는 나라는 사람의 가치는 몰랐지.\",\"Quiet conviction, mature, no bitterness.\"],[\"d\",\"엄마는 지금 행복해?\",\"Genuine tenderness.\"],[\"m\",\"그럼. 예전에는 밥이나 하는 여자라는 소리를 들었는데, 지금은 그 음식으로 직원들 월급까지 주고 있잖아. 엄마가 이렇게 능력 있는 사람인 줄 예전에는 몰랐어.\",\"Natural proud smile, understated emotion.\"],[\"n\",\"누군가에게 버림받았다고 해서 당신의 가치까지 사라지는 것은 아닙니다. 모든 것을 잃었다고 생각했던 순간이 새로운 인생의 시작이 되기도 합니다.\",\"Quiet reflective conviction.\"],[\"n\",\"나를 절벽으로 밀어낸 사람 때문에, 비로소 내게도 날개가 있다는 것을 알게 되었습니다.\",\"Warm memorable delivery.\"],[\"n\",\"이 이야기가 마음에 남으셨다면 구독과 좋아요 부탁드립니다.\",\"Natural closing, clear final syllables.\"]]")
+          OUT=Path("misuk_market_audio");OUT.mkdir(exist_ok=True)
+          key=os.environ["GEMINI_API_KEY"]
+          voices={"n":"Charon","m":"Gacrux","h":"Algenib","w":"Sulafat","d":"Kore"}
+          styles={"n":"Natural Korean reflective narrator.","m":"Korean woman in her mid to late fifties, warm and grounded.","h":"Korean middle-aged husband, arrogant but realistic.","w":"Korean woman in her fifties, friendly.","d":"Korean adult daughter in her late twenties."}
+          def generate(item):
+           i,(role,script,acting)=item
+           dest=OUT/f"raw_{i:02d}.wav"
+           payload={"model":"gemini-3.8-flash-tts","input":[{"type":"user_input","content":[{"type":"text","text":script,"annotations":[{"type":"speech_metadata","style":styles[role]+" "+acting+" Natural Korean, steady conversational pace, natural connected phrasing, no shouting, no unnatural breathiness, no rushed syllables. Read exactly the full text, no additions. Finish final syllables clearly."}]}]}],"response_format":{"type":"audio"},"generation_config":{"speech_config":[{"voice":voices[role]}]}}
+           for attempt in range(3):
+            try:
+             print("REQUEST",i,attempt+1,flush=True)
+             req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json","x-goog-api-key":key})
+             with urllib.request.urlopen(req,timeout=45) as response:r=json.load(response)
+             audio=[c for s in r.get("steps",[]) for c in s.get("content",[]) if c.get("type")=="audio" and c.get("data")]
+             if not audio:raise RuntimeError("No audio: "+str(r.get("status")))
+             data=base64.b64decode(audio[-1]["data"])
+             if data[:4]==b"RIFF":dest.write_bytes(data)
+             else:
+              with wave.open(str(dest),"wb") as w:
+               w.setnchannels(1);w.setsampwidth(2);w.setframerate(24000);w.writeframes(data)
+             with wave.open(str(dest)) as w:d=w.getnframes()/w.getframerate()
+             if d<0.4:raise RuntimeError("Empty audio")
+             record={"i":i,"role":role,"voice":voices[role],"text":script,"file":dest.name,"duration":d}
+             (OUT/f"line_{i:02d}.json").write_text(json.dumps(record,ensure_ascii=False),encoding="utf8")
+             print("GENERATED",i,round(d,2),flush=True)
+             time.sleep(9)
+             return record
+            except Exception as e:
+             print("ERROR",i,attempt+1,str(e).replace(key,"[redacted]")[:350],flush=True)
+             if isinstance(e,urllib.error.HTTPError) and e.code==429:print('RATE_LIMIT',flush=True)
+             if attempt==2:return {"i":i,"error":str(e).replace(key,"[redacted]")}
+             time.sleep(65 if isinstance(e,urllib.error.HTTPError) and e.code==429 else 3)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+           records=list(ex.map(generate,list(enumerate(GROUPS,1))))
+          t=0
+          for r in records:
+           if "duration" in r:r["start"]=round(t,4);t+=r["duration"];r["end"]=round(t,4)
+          (OUT/"manifest.json").write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding="utf8")
+          print("TOTAL",round(t,3),"SUCCESS",sum("duration" in r for r in records),flush=True)
+          if any("error" in r for r in records):raise SystemExit(1)
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: misuk-market-voices
+          path: misuk_market_audio/
+          retention-days: 7
