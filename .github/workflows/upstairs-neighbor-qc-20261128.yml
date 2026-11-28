@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - '.github/workflows/upstairs-neighbor-qc-20261127.yml'
+      - '.github/workflows/upstairs-neighbor-qc-20261128.yml'
 permissions:
   actions: read
   contents: read
